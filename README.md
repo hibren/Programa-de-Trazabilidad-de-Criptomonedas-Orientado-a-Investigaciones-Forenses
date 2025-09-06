@@ -53,9 +53,9 @@ El sistema a desarrollar es una **herramienta de trazabilidad y análisis forens
 
 ### 1. Clonar este repositorio
 
-git clone https://github.com/tuusuario/Seguimiento-del-dinero-criptomonedas-en-diferentes-exchanges.git
-cd Seguimiento-del-dinero-criptomonedas-en-diferentes-exchanges
+git clone https://github.com/tuusuario/Programa-de-Trazabilidad-de-Criptomonedas-Orientado-a-Investigaciones-Forenses.git
 
+cd Programa-de-Trazabilidad-de-Criptomonedas-Orientado-a-Investigaciones-Forenses
 
 ### 2. Con Docker (recomendado)
 
