@@ -1,112 +1,107 @@
-Programa de Trazabilidad de Criptomonedas
+pero hacelo tipo asi en este formato
+# 🔍 Seguimiento del Dinero en Criptomonedas en Diferentes Exchanges
 
+Este proyecto consiste en el desarrollo de un **Programa de Trazabilidad de Criptomonedas** orientado a investigaciones forenses.  
+Su objetivo principal es permitir a **peritos, fiscales e investigadores** rastrear y analizar transacciones de criptomonedas a través de **blockchains públicas y exchanges centralizados**, con el fin de identificar posibles patrones de riesgo relacionados con **lavado de dinero, ciberdelitos u otras actividades ilícitas**.
 
+---
 
+## 📌 Tipo de sistema a desarrollar
+El sistema a desarrollar es una **herramienta de trazabilidad y análisis forense** que:
 
+- Utiliza **APIs de blockchain** (ej: BlockCypher para Bitcoin) y **APIs de exchanges autorizados** para extraer información de transacciones, balances y flujos de fondos.
+- Permite seguir el rastro de cada transacción, revisando los outputs y clasificándolos según su destino:
+  - Exchanges conocidos
+  - Mixers
+  - Direcciones sospechosas
+  - Nuevas direcciones
+- Incorpora un **modelo de análisis de riesgo** que asigna puntajes a direcciones y transacciones utilizando:
+  - Criterios técnicos  
+  - Listas de sancionados  
+  - OSINT  
+  - Patrones de transacciones inusuales  
 
+---
 
+## 🛠️ Tecnologías a aplicar
 
+- **Base de datos NoSQL (MongoDB):**  
+  Para almacenar información de transacciones, direcciones, scores de riesgo y reportes, con consultas rápidas sobre grandes volúmenes de datos.
 
+- **React (con Vite + Tailwind CSS):**  
+  Desarrollo del **frontend** para interfaces modernas, interactivas y responsive.
 
+- **FastAPI:**  
+  Framework del **backend** para exponer APIs rápidas y seguras, gestionar la extracción de datos desde blockchains y exchanges, calcular puntajes de riesgo y generar informes.
 
+---
 
+## 📊 Resultados esperados
 
-🔍 Seguimiento del Dinero en Criptomonedas en Diferentes Exchanges
+- Seguimiento detallado de transacciones en diferentes blockchains y exchanges.  
+- Identificación de patrones sospechosos y cálculo de riesgo.  
+- Reportes forenses completos, con grafos, líneas de tiempo y tablas.  
+- Sistema auditable y con validez judicial para investigaciones.  
 
-Este proyecto es un Programa de Trazabilidad de Criptomonedas orientado a investigaciones forenses. Permite a peritos, fiscales e investigadores rastrear movimientos de criptomonedas y analizar transacciones asociadas a direcciones y clusters.
+---
 
-📂 Estructura del Proyecto
-Programa-de-Trazabilidad-de-Criptomonedas/
- ├── backend/        # FastAPI + MongoDB
- │   ├── main.py
- │   ├── requirements.txt
- │   └── Dockerfile
- ├── frontend/       # Next.js + TailwindCSS
- │   ├── src/
- │   ├── package.json
- │   └── Dockerfile
- └── docker-compose.yml
+## 🚀 Cómo Ejecutar el Proyecto
 
-🛠 Tecnologías
+### 1. Clonar este repositorio
 
-Frontend: Next.js, React, TailwindCSS
+git clone https://github.com/tuusuario/Seguimiento-del-dinero-criptomonedas-en-diferentes-exchanges.git
 
-Backend: FastAPI, Pydantic, Motor (MongoDB Async Driver)
+cd Seguimiento-del-dinero-criptomonedas-en-diferentes-exchanges
 
-Base de datos: MongoDB (Docker)
+### 2. Backend (FastAPI)
 
-Orquestación: Docker + Docker Compose
+📂 Entrar en la carpeta backend:
 
-Extras: ESLint, Prettier
-
-⚡ Requisitos
-
-Node.js
- ≥18
-
-Python
- ≥3.10
-
-Docker
- y Docker Compose
-
-pip y npm
-
-🚀 Levantar el Proyecto
-1️⃣ Con Docker (recomendado)
-
-Desde la raíz del proyecto:
-
-docker compose up -d --build
-
-
-Backend: http://localhost:8000
-
-Documentación FastAPI: http://localhost:8000/docs
-
-Frontend: http://localhost:3000
-
-MongoDB: mongodb://localhost:27017
-
-2️⃣ Sin Docker (desarrollo rápido)
-Backend
 cd backend
+
+📌 Crear un entorno virtual:
+
 python -m venv venv
-.\venv\Scripts\Activate   # Windows
-# source venv/bin/activate # Linux/Mac
+
+source venv/bin/activate   # Linux/MacOS
+
+venv\Scripts\activate      # Windows PowerShell
+
+📌 Instalar dependencias:
 
 pip install -r requirements.txt
-uvicorn main:app --reload
 
-Frontend
+📌 Ejecutar el servidor:
+
+uvicorn app.main:app --reload
+
+El backend quedará disponible en 👉 http://localhost:8000
+
+y la documentación interactiva en 👉 http://localhost:8000/docs
+
+### 3. Frontend (React + Vite + Tailwind)
+📂 En otra terminal, entrar en la carpeta frontend:
+
 cd frontend
+
+📌 Instalar dependencias:
+
 npm install
+
+📌 Ejecutar el servidor de desarrollo:
+
 npm run dev
 
-🔗 Conexión Frontend ↔ Backend
+El frontend quedará disponible en 👉 http://localhost:5173
 
-En desarrollo, el frontend hace fetch a http://localhost:8000.
+### 📦 requirements.txt
 
-Para producción, usar variable de entorno NEXT_PUBLIC_API_URL.
+El backend requiere las siguientes dependencias:
 
-Ejemplo .env.local en Next.js:
+•	fastapi
 
-NEXT_PUBLIC_API_URL=http://localhost:8000
+•	uvicorn
 
-📌 Buenas Prácticas
+•	requests
 
-Mantener ESLint activo para código limpio.
-
-Integrar Prettier para formateo automático.
-
-Separar el código en src/ para mayor organización.
-
-Usar MongoDB en Docker para consistencia y fácil despliegue.
-
-📝 Notas
-
-La primera vez que levantás Docker Compose, puede tardar unos minutos en descargar imágenes (mongo, node, etc.).
-
-La advertencia de Cross origin request en desarrollo es normal y no rompe nada.
-
-Se recomienda usar Next.js fuera de Docker en desarrollo para aprovechar hot reload.
+•	pydantic
