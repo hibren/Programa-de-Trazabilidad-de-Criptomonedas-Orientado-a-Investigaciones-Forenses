@@ -80,7 +80,7 @@ cd backend
 📌 Crear un entorno virtual:
 
 python -m venv venv
-# Windows PowerShell
+Windows PowerShell
 .\venv\Scripts\activate
 
 
