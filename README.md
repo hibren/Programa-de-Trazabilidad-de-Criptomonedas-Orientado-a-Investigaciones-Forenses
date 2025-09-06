@@ -63,13 +63,10 @@ Levantar todo junto (MongoDB + Backend + Frontend):
 
 docker compose up -d --build
 
-Backend (FastAPI): http://localhost:8000
-
-Documentación FastAPI: http://localhost:8000/docs
-
-Frontend (Next.js): http://localhost:3000
-
-MongoDB: mongodb://localhost:27017
+- Backend (FastAPI): http://localhost:8000
+- Documentación FastAPI: http://localhost:8000/docs
+- Frontend (Next.js): http://localhost:3000
+- MongoDB: mongodb://localhost:27023
 
 Docker manejará automáticamente volúmenes persistentes y dependencias.
 
@@ -85,8 +82,6 @@ cd backend
 python -m venv venv
 # Windows PowerShell
 .\venv\Scripts\activate
-# Linux/MacOS
-source venv/bin/activate
 
 
 📌 Instalar dependencias:
@@ -128,15 +123,15 @@ Asegúrate de que la variable de entorno NEXT_PUBLIC_API_URL apunte al backend (
 
 El backend requiere las siguientes dependencias:
 
-fastapi
+- fastapi
 
-uvicorn[standard]
+- uvicorn[standard]
 
-motor
+- motor
 
-pydantic
+- pydantic
 
-requests
+- requests
 
 ### 💡 Notas
 
