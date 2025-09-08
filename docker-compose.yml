@@ -1,36 +1,27 @@
 version: "3.9"
-
 services:
-  backend:
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    volumes:
+      - mongo_data:/data/db
+
+  fastapi:
     build: ./backend
-    container_name: fastapi_backend
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    container_name: fastapi_trazabilidad
     volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
     depends_on:
       - mongo
-
-  mongo:
-    image: mongo:latest
-    container_name: mongo_db
-    restart: always
-    ports:
-      - "27023:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  frontend:
-    build: ./frontend
-    container_name: next_frontend
-    command: npm run dev
-    volumes:
-      - ./frontend:/app
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+    environment:
+      MONGO_URL: mongodb://root:root@mongo:27017/
 
 volumes:
   mongo_data:
