@@ -90,6 +90,8 @@ pip install -r requirements.txt
 
 📌 Ejecutar el servidor:
 
+cd app
+
 uvicorn main:app --reload
 
 
