@@ -4,7 +4,7 @@ from typing import List
 from app.schemas.direccion import DireccionCreateSchema, DireccionResponseSchema
 from app.services.direccion import (
     create_direccion,
-    get_direccion_by_id,
+    get_direccion_by_value,
     get_all_direcciones,
     update_direccion,
     delete_direccion
@@ -26,14 +26,14 @@ async def create_direccion_endpoint(direccion: DireccionCreateSchema):
 async def list_direcciones():
     return await get_all_direcciones()
 
-@router.get("/{direccion_id}", response_model=DireccionResponseSchema)
-async def get_direccion(direccion_id: str):
+@router.get("/{direccion}", response_model=DireccionResponseSchema)
+async def get_direccion(direccion: str):
     try:
-        direccion = await get_direccion_by_id(direccion_id)
-        if not direccion:
+        direccion_doc = await get_direccion_by_value(direccion)
+        if not direccion_doc:
             raise HTTPException(status_code=404, detail="Dirección no encontrada")
-        print("DIRECCION:", direccion)
-        return direccion
+        print("DIRECCION:", direccion_doc)
+        return direccion_doc.dict(by_alias=True)  # 👈 asegurar que JSON tenga "_id"
     except HTTPException:
         raise
     except Exception as e:

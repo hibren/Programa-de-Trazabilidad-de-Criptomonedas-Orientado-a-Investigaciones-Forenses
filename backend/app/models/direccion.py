@@ -1,9 +1,12 @@
 from pydantic import BaseModel, Field
-from bson import ObjectId
+from app.database import PyObjectId
+
+
+from pydantic import BaseModel, Field
 from app.database import PyObjectId
 
 class DireccionModel(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")  # <-- nombre Pydantic: id, alias Mongo: _id
     direccion: str
     balance: float
     total_recibido: float
@@ -11,7 +14,9 @@ class DireccionModel(BaseModel):
     perfil_riesgo: str
 
     class Config:
-        # permite usar alias "_id" <-> "id"
-        populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+        json_encoders = {PyObjectId: str}
+        allow_population_by_field_name = True  # permite usar id al crear/serializar
+        by_alias = True  # usa _id al serializar a JSON
+
+

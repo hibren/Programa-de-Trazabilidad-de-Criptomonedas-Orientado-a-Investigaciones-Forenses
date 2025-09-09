@@ -4,22 +4,18 @@ from app.schemas.direccion import DireccionCreateSchema
 from typing import List, Optional
 
 # Obtener todos
-async def get_all_direcciones() -> List[DireccionModel]:
-    direcciones = []
-    cursor = direccion_collection.find()
-    async for doc in cursor:
-        direcciones.append(DireccionModel(**doc))
-    return direcciones
+async def get_all_direcciones():
+    docs = await direccion_collection.find().to_list(100)
+    return [DireccionModel(**doc).dict(by_alias=True) for doc in docs]
 
-# Crear
-async def create_direccion(data: dict) -> DireccionModel:
+async def create_direccion(data: dict) -> dict:
     result = await direccion_collection.insert_one(data)
     created = await direccion_collection.find_one({"_id": result.inserted_id})
-    return DireccionModel(**created)
+    return DireccionModel(**created).dict(by_alias=True)
 
-# Obtener por id
-async def get_direccion_by_id(direccion_id: str) -> Optional[DireccionModel]:
-    doc = await direccion_collection.find_one({"_id": PyObjectId(direccion_id)})
+# Obtener por dirección
+async def get_direccion_by_value(direccion_str: str) -> Optional[DireccionModel]:
+    doc = await direccion_collection.find_one({"direccion": direccion_str})
     return DireccionModel(**doc) if doc else None
 
 # Actualizar
