@@ -24,16 +24,7 @@ async def create_direccion_endpoint(direccion: DireccionCreateSchema):
 
 @router.get("/", response_model=List[DireccionResponseSchema])
 async def list_direcciones():
-    try:
-        result = await get_all_direcciones()
-        print("GET ALL RESULT:", result)
-        print("GET ALL RESULT TYPE:", type(result))
-        if result:
-            print("FIRST ITEM:", result[0] if len(result) > 0 else "Empty list")
-        return result
-    except Exception as e:
-        print(f"Error listing direcciones: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return await get_all_direcciones()
 
 @router.get("/{direccion_id}", response_model=DireccionResponseSchema)
 async def get_direccion(direccion_id: str):

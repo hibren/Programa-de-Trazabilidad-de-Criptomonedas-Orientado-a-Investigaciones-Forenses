@@ -10,7 +10,8 @@ class DireccionModel(BaseModel):
     total_enviado: float
     perfil_riesgo: str
 
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "json_encoders": {ObjectId: str}
-    }
+    class Config:
+        # permite usar alias "_id" <-> "id"
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
