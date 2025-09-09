@@ -10,36 +10,68 @@ from app.services.direccion import (
     delete_direccion
 )
 
-
 router = APIRouter(prefix="/direcciones", tags=["direcciones"])
 
 @router.post("/", response_model=DireccionResponseSchema)
 async def create_direccion_endpoint(direccion: DireccionCreateSchema):
-    created = await create_direccion(direccion.dict())
-    return created
+    try:
+        created = await create_direccion(direccion.model_dump())
+        print("CREATED:", created)
+        return created
+    except Exception as e:
+        print(f"Error creating direccion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[DireccionResponseSchema])
 async def list_direcciones():
-    direcciones = await get_all_direcciones()
-    return direcciones
+    try:
+        result = await get_all_direcciones()
+        print("GET ALL RESULT:", result)
+        print("GET ALL RESULT TYPE:", type(result))
+        if result:
+            print("FIRST ITEM:", result[0] if len(result) > 0 else "Empty list")
+        return result
+    except Exception as e:
+        print(f"Error listing direcciones: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{direccion_id}", response_model=DireccionResponseSchema)
 async def get_direccion(direccion_id: str):
-    direccion = await get_direccion_by_id(direccion_id)
-    if not direccion:
-        raise HTTPException(status_code=404, detail="Dirección no encontrada")
-    return direccion
+    try:
+        direccion = await get_direccion_by_id(direccion_id)
+        if not direccion:
+            raise HTTPException(status_code=404, detail="Dirección no encontrada")
+        print("DIRECCION:", direccion)
+        return direccion
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting direccion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{direccion_id}", response_model=DireccionResponseSchema)
 async def update_direccion_endpoint(direccion_id: str, direccion: DireccionCreateSchema):
-    updated = await update_direccion(direccion_id, direccion.dict())
-    if not updated:
-        raise HTTPException(status_code=404, detail="Dirección no encontrada")
-    return updated
+    try:
+        updated = await update_direccion(direccion_id, direccion.model_dump())
+        if not updated:
+            raise HTTPException(status_code=404, detail="Dirección no encontrada")
+        print("UPDATED:", updated)
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating direccion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{direccion_id}")
 async def delete_direccion_endpoint(direccion_id: str):
-    deleted_count = await delete_direccion(direccion_id)
-    if deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Dirección no encontrada")
-    return {"detail": "Dirección eliminada"}
+    try:
+        deleted_count = await delete_direccion(direccion_id)
+        if deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Dirección no encontrada")
+        return {"detail": "Dirección eliminada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting direccion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

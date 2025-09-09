@@ -13,9 +13,11 @@ MONGO_DETAILS = os.getenv(
     "mongodb://root:root@mongo:27017/trazabilidad?authSource=admin"
 )
 
-
 client = AsyncIOMotorClient(MONGO_DETAILS)
 db = client["trazabilidad"]
+
+# Colecciones
+direccion_collection = db["direcciones"]
 
 # -----------------------------
 # Clase para usar ObjectId en Pydantic
