@@ -1,0 +1,45 @@
+# app/routers/direccion.py
+from fastapi import APIRouter, HTTPException
+from typing import List
+from app.schemas.direccion import DireccionCreateSchema, DireccionResponseSchema
+from app.services.direccion import (
+    create_direccion,
+    get_direccion_by_id,
+    get_all_direcciones,
+    update_direccion,
+    delete_direccion
+)
+
+
+router = APIRouter(prefix="/direcciones", tags=["direcciones"])
+
+@router.post("/", response_model=DireccionResponseSchema)
+async def create_direccion_endpoint(direccion: DireccionCreateSchema):
+    created = await create_direccion(direccion.dict())
+    return created
+
+@router.get("/", response_model=List[DireccionResponseSchema])
+async def list_direcciones():
+    direcciones = await get_all_direcciones()
+    return direcciones
+
+@router.get("/{direccion_id}", response_model=DireccionResponseSchema)
+async def get_direccion(direccion_id: str):
+    direccion = await get_direccion_by_id(direccion_id)
+    if not direccion:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    return direccion
+
+@router.put("/{direccion_id}", response_model=DireccionResponseSchema)
+async def update_direccion_endpoint(direccion_id: str, direccion: DireccionCreateSchema):
+    updated = await update_direccion(direccion_id, direccion.dict())
+    if not updated:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    return updated
+
+@router.delete("/{direccion_id}")
+async def delete_direccion_endpoint(direccion_id: str):
+    deleted_count = await delete_direccion(direccion_id)
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+    return {"detail": "Dirección eliminada"}
