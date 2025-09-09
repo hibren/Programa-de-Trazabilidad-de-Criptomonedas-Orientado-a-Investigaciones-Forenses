@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 
+class DireccionCreateSchema(BaseModel):
+    direccion: str
+
+    
 class DireccionResponseSchema(BaseModel):
     id: str
     direccion: str
