@@ -18,6 +18,8 @@ db = client["trazabilidad"]
 
 # Colecciones
 direccion_collection = db["direcciones"]
+bloque_collection = db["bloques"]
+transaccion_collection = db["transacciones"]
 
 # -----------------------------
 # Clase para usar ObjectId en Pydantic
