@@ -1,14 +1,16 @@
 # app/routers/direccion.py
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.schemas.direccion import DireccionCreateSchema, DireccionResponseSchema
+from app.schemas.direccion import DireccionCreateSchema, DireccionResponseSchema, DireccionFetchRequest
 from app.services.direccion import (
     create_direccion,
     get_direccion_by_value,
     get_all_direcciones,
     update_direccion,
-    delete_direccion
+    delete_direccion,
+    fetch_and_save_direccion
 )
+from app.models.direccion import DireccionModel
 
 router = APIRouter(prefix="/direcciones", tags=["direcciones"])
 
@@ -65,4 +67,13 @@ async def delete_direccion_endpoint(direccion_id: str):
         raise
     except Exception as e:
         print(f"Error deleting direccion: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/fetch", response_model=DireccionModel)
+async def fetch_direccion(request: DireccionFetchRequest):
+    try:
+        return await fetch_and_save_direccion(request.direccion)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

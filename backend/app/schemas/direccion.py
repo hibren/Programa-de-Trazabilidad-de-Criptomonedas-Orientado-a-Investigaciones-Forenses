@@ -11,6 +11,8 @@ class DireccionCreateSchema(BaseModel):
     total_enviado: float = 0
     perfil_riesgo: str = "bajo"
 
+class DireccionFetchRequest(BaseModel):
+    direccion: str
 
 class DireccionResponseSchema(BaseModel):
     id: PyObjectIdField = Field(alias="_id")
