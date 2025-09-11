@@ -1,4 +1,4 @@
-from database import bloque_collection, PyObjectId
+from app.database import bloque_collection, PyObjectId
 from app.models.bloque import BloqueModel
 from app.schemas.bloque import BloqueCreateSchema
 from typing import List, Optional
