@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Python
+# Ignorar bytecode compilado de Python
 __pycache__/
 *.pyc
+
+# Ignorar entorno virtual
+venv/
