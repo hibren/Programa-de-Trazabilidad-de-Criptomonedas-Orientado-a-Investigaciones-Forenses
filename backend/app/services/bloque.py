@@ -62,7 +62,7 @@ async def fetch_and_save_bloque(block_hash: str) -> BloqueModel:
     doc = {
         "numero_bloque": data.get("height"),
         "hash": data.get("hash"),
-        "fecha": fecha_obj.date(),
+        "fecha": fecha_obj,
         "recompensa_total": float(data.get("fees", 0)) / 100000000,
         "volumen_total": float(data.get("total", 0)) / 100000000,
     }

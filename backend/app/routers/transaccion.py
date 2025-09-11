@@ -15,13 +15,14 @@ router = APIRouter(prefix="/transacciones", tags=["transacciones"])
 async def create_transaccion_endpoint(transaccion: TransaccionCreateSchema):
     try:
         created = await create_transaccion(transaccion)
-        return created
+        return created.model_dump(by_alias=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[TransaccionResponseSchema])
 async def list_transacciones():
-    return await get_all_transacciones()
+    transacciones = await get_all_transacciones()
+    return [t.model_dump(by_alias=True) for t in transacciones]
 
 @router.get("/{transaccion_hash}", response_model=TransaccionResponseSchema)
 async def get_transaccion(transaccion_hash: str):
@@ -29,7 +30,7 @@ async def get_transaccion(transaccion_hash: str):
         transaccion_doc = await get_transaccion_by_hash(transaccion_hash)
         if not transaccion_doc:
             raise HTTPException(status_code=404, detail="Transacción no encontrada")
-        return transaccion_doc
+        return transaccion_doc.model_dump(by_alias=True)
     except HTTPException:
         raise
     except Exception as e:
@@ -41,7 +42,7 @@ async def update_transaccion_endpoint(transaccion_id: str, transaccion: Transacc
         updated = await update_transaccion(transaccion_id, transaccion.model_dump())
         if not updated:
             raise HTTPException(status_code=404, detail="Transacción no encontrada")
-        return updated
+        return updated.model_dump(by_alias=True)
     except HTTPException:
         raise
     except Exception as e:

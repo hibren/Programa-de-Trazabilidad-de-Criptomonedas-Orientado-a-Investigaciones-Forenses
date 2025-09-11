@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
 from app.database import PyObjectId
-from datetime import date
+from datetime import datetime
 
 class BloqueModel(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     numero_bloque: int
     hash: str
-    fecha: date
+    fecha: datetime
     recompensa_total: float
     volumen_total: float
 

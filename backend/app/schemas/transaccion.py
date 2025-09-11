@@ -1,10 +1,7 @@
 from datetime import datetime
-from typing import List, Optional, Annotated
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.database import PyObjectId
-from app.schemas.direccion import DireccionResponseSchema
-
-PyObjectIdField = Annotated[str, Field(description="Mongo ObjectId")]
 
 class TransaccionCreateSchema(BaseModel):
     hash: str
@@ -17,15 +14,15 @@ class TransaccionCreateSchema(BaseModel):
     bloque: Optional[str] = None
 
 class TransaccionResponseSchema(BaseModel):
-    id: PyObjectIdField = Field(alias="_id")
+    id: str = Field(alias="_id")
     hash: str
     fecha: datetime
-    inputs: List[DireccionResponseSchema]
-    outputs: List[DireccionResponseSchema]
+    inputs: List[str]  # IDs como strings
+    outputs: List[str]  # IDs como strings
     monto_total: float
     estado: str
     patrones_sospechosos: List[str]
-    bloque: Optional[PyObjectIdField] = None
+    bloque: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True

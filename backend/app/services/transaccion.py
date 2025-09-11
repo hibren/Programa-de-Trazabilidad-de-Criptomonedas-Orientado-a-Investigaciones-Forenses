@@ -9,15 +9,19 @@ async def get_all_transacciones() -> List[TransaccionModel]:
     return [TransaccionModel(**doc) for doc in docs]
 
 async def create_transaccion(data: TransaccionCreateSchema) -> TransaccionModel:
-    # Resolve inputs and outputs
-    inputs_models = [await fetch_and_save_direccion(addr) for addr in data.inputs]
-    outputs_models = [await fetch_and_save_direccion(addr) for addr in data.outputs]
+    # Resolve inputs and outputs to get their ObjectIds
+    inputs_ids = [
+        (await fetch_and_save_direccion(addr)).id for addr in data.inputs
+    ]
+    outputs_ids = [
+        (await fetch_and_save_direccion(addr)).id for addr in data.outputs
+    ]
 
     transaccion_doc = {
         "hash": data.hash,
         "fecha": data.fecha,
-        "inputs": [d.model_dump(by_alias=True) for d in inputs_models],
-        "outputs": [d.model_dump(by_alias=True) for d in outputs_models],
+        "inputs": inputs_ids,
+        "outputs": outputs_ids,
         "monto_total": data.monto_total,
         "estado": data.estado,
         "patrones_sospechosos": data.patrones_sospechosos,
