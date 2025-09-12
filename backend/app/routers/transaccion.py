@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.schemas.transaccion import TransaccionCreateSchema, TransaccionResponseSchema
+from app.schemas.transaccion import TransaccionCreateSchema, TransaccionResponseSchema, TransaccionFetchRequest
 from app.services.transaccion import (
     create_transaccion,
     get_transaccion_by_hash,
     get_all_transacciones,
     update_transaccion,
     delete_transaccion,
+    fetch_and_save_transactions_by_address,
 )
 
 router = APIRouter(prefix="/transacciones", tags=["transacciones"])
@@ -57,5 +58,13 @@ async def delete_transaccion_endpoint(transaccion_id: str):
         return {"detail": "Transacción eliminada"}
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/fetch", response_model=List[TransaccionResponseSchema])
+async def fetch_transacciones_by_direccion(direccion_hash: str):
+    try:
+        transacciones = await fetch_and_save_transactions_by_address(direccion_hash)
+        return [t.model_dump(by_alias=True) for t in transacciones]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

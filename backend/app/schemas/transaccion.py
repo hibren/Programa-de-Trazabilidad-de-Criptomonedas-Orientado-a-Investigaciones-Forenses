@@ -32,3 +32,6 @@ class TransaccionResponseSchema(BaseModel):
         }
         allow_population_by_field_name = True
         by_alias = True
+
+class TransaccionFetchRequest(BaseModel):
+    direccion: str

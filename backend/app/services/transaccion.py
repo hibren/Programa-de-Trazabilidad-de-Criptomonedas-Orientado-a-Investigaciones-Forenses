@@ -1,8 +1,11 @@
 from typing import List, Optional
+import httpx
+from datetime import datetime
 from app.database import transaccion_collection, PyObjectId
 from app.models.transaccion import TransaccionModel
 from app.schemas.transaccion import TransaccionCreateSchema
 from app.services.direccion import fetch_and_save_direccion
+from app.services.bloque import fetch_and_save_bloque
 
 async def get_all_transacciones() -> List[TransaccionModel]:
     docs = await transaccion_collection.find().to_list(100)
@@ -46,3 +49,87 @@ async def update_transaccion(transaccion_id: str, data: dict) -> Optional[Transa
 async def delete_transaccion(transaccion_id: str) -> int:
     result = await transaccion_collection.delete_one({"_id": PyObjectId(transaccion_id)})
     return result.deleted_count
+
+async def _fetch_raw_transactions_by_address(address: str) -> List[dict]:
+    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            try:
+                data = response.json()
+            except ValueError:
+                raise ValueError("La respuesta de la API no es JSON válido")
+
+            if "error" in data:
+                raise ValueError(data["error"])
+        except httpx.HTTPStatusError as e:
+            raise Exception(f"Error HTTP: {e.response.text}") from e
+        except httpx.RequestError as e:
+            raise Exception(f"Error de conexión con la API: {str(e)}") from e
+
+    if "txs" in data:
+        return data["txs"]
+    else:
+        return []
+
+async def fetch_and_save_transactions_by_address(address: str) -> List[TransaccionModel]:
+    raw_txs = await _fetch_raw_transactions_by_address(address)
+    saved_transactions = []
+
+    for tx_data in raw_txs:
+        tx_hash = tx_data.get("hash")
+        if not tx_hash:
+            continue
+
+        existing_tx = await get_transaccion_by_hash(tx_hash)
+        if existing_tx:
+            saved_transactions.append(existing_tx)
+            continue
+
+        block_id = None
+        block_hash = tx_data.get("block_hash")
+        if block_hash:
+            bloque = await fetch_and_save_bloque(block_hash)
+            if bloque:
+                block_id = bloque.id
+
+        input_ids = []
+        for vin in tx_data.get("inputs", []):
+            for addr in vin.get("addresses", []):
+                if addr:
+                    direccion = await fetch_and_save_direccion(addr)
+                    input_ids.append(direccion.id)
+
+        output_ids = []
+        for vout in tx_data.get("outputs", []):
+            for addr in vout.get("addresses", []):
+                if addr:
+                    direccion = await fetch_and_save_direccion(addr)
+                    output_ids.append(direccion.id)
+
+        fecha_str = tx_data.get("confirmed")
+        fecha_obj = datetime.fromisoformat(fecha_str.replace("Z", "+00:00")) if fecha_str else datetime.now()
+
+        transaccion_doc = {
+            "hash": tx_hash,
+            "fecha": fecha_obj,
+            "inputs": input_ids,
+            "outputs": output_ids,
+            "monto_total": float(tx_data.get("total", 0)) / 100000000,
+            "estado": "confirmada" if tx_data.get("block_height", -1) > 0 else "pendiente",
+            "patrones_sospechosos": [],
+            "bloque": block_id,
+        }
+
+        result = await transaccion_collection.insert_one(transaccion_doc)
+        created = await transaccion_collection.find_one({"_id": result.inserted_id})
+        if created:
+            saved_transactions.append(TransaccionModel(**created))
+
+    return saved_transactions
+
+async def fetch_transactions_by_address(address: str) -> List[dict]:
+    await fetch_and_save_transactions_by_address(address)
+    return await _fetch_raw_transactions_by_address(address)
