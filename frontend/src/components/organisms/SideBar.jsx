@@ -1,16 +1,25 @@
+"use client"
+
+import { useState } from "react"
 import NavItem from "../molecules/NavItem"
 
 const Sidebar = ({ activeItem = "dashboard" }) => {
+  const [currentActive, setCurrentActive] = useState(activeItem)
+
   const navItems = [
-    { id: "dashboard", icon: "dashboard", label: "Dashboard" },
-    { id: "directions", icon: "directions", label: "Direcciones" },
-    { id: "transactions", icon: "transactions", label: "Transacciones" },
-    { id: "graphs", icon: "graphs", label: "Grafos" },
-    { id: "risk", icon: "risk", label: "Perfiles de Riesgo" },
-    { id: "monitor", icon: "monitor", label: "Monitoreo y Alertas" },
-    { id: "reports", icon: "reports", label: "Reportes" },
-    { id: "admin", icon: "admin", label: "Administración" },
+    { id: "dashboard", icon: "dashboard", label: "Dashboard", href: "/dashboard" },
+    { id: "direcciones", icon: "directions", label: "Direcciones", href: "/direcciones" },
+    { id: "transactions", icon: "transactions", label: "Transacciones", href: "/transacciones" },
+    { id: "graphs", icon: "graphs", label: "Grafos", href: "/grafos" },
+    { id: "risk", icon: "risk", label: "Perfiles de Riesgo", href: "/riesgo" },
+    { id: "monitor", icon: "monitor", label: "Monitoreo y Alertas", href: "/monitoreo" },
+    { id: "reports", icon: "reports", label: "Reportes", href: "/reportes" },
+    { id: "admin", icon: "admin", label: "Administración", href: "/admin" },
   ]
+
+  const handleItemClick = (itemId) => {
+    setCurrentActive(itemId)
+  }
 
   return (
     <div className="w-64 bg-green-800 min-h-screen p-4">
@@ -27,7 +36,14 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
       {/* Navigation */}
       <nav className="space-y-2">
         {navItems.map((item) => (
-          <NavItem key={item.id} icon={item.icon} label={item.label} active={activeItem === item.id} />
+          <NavItem 
+            key={item.id} 
+            icon={item.icon} 
+            label={item.label} 
+            href={item.href}
+            active={currentActive === item.id}
+            onClick={() => handleItemClick(item.id)}
+          />
         ))}
       </nav>
     </div>
