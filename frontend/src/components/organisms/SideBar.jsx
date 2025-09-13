@@ -9,7 +9,7 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
   const navItems = [
     { id: "dashboard", icon: "dashboard", label: "Dashboard", href: "/dashboard" },
     { id: "direcciones", icon: "directions", label: "Direcciones", href: "/direcciones" },
-    { id: "transactions", icon: "transactions", label: "Transacciones", href: "/transacciones" },
+    { id: "transacciones", icon: "transactions", label: "Transacciones", href: "/transacciones" },
     { id: "graphs", icon: "graphs", label: "Grafos", href: "/grafos" },
     { id: "risk", icon: "risk", label: "Perfiles de Riesgo", href: "/riesgo" },
     { id: "monitor", icon: "monitor", label: "Monitoreo y Alertas", href: "/monitoreo" },
