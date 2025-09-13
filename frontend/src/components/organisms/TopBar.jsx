@@ -1,3 +1,4 @@
+"use client"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 

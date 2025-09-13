@@ -2,7 +2,7 @@ import Badge from "../atoms/Badge"
 
 const DireccionesRow = ({ direccion, balance, ultimaActividad, transacciones, entradas, salidas, nivelRiesgo }) => {
   const getRiskVariant = (riesgo) => {
-    switch (risk.toLowerCase()) {
+    switch (riesgo.toLowerCase()) {
       case "bajo":
         return "success"
       case "medio":

@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import Button from "../atoms/Button"
-import Input from "../atoms/Input"
 import Icon from "../atoms/Icon"
-import TopBar from "../organisms/TopBar"  // ajustá la ruta según tu estructura
+import TopBar from "@/components/organisms/TopBar"
 import TabNavigation from "../molecules/TabNavigation"
 import DireccionesRow from "../molecules/DireccionesRow"
+import SearchBar from "@/components/molecules/SearchBar"
 
-const DirectionsContent = () => {
+const DireccionesContent = () => {
   const [activeTab, setActiveTab] = useState("direcciones")
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -54,29 +54,19 @@ const DirectionsContent = () => {
       {/* Header */}
       <TopBar />
 
-      {/* Search and Actions */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Icon
-                name="search"
-                size={20}
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              />
-              <Input
-                placeholder="Buscar dirección, hash de transacción o número de bloque..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <Button variant="success" size="sm" className="ml-4">
-            <Icon name="search" size={16} className="mr-2" />
-          </Button>
+      {/* Search Bar - Ahora con padding igual que DashboardContent */}
+      <div className="p-6 pb-0">
+        <div className="mb-6">
+          <SearchBar
+            placeholder="Buscar dirección, hash de transacción o número de bloque..."
+            className="w-full max-w-md"
+            onSearch={(query) => setSearchQuery(query)}
+          />
         </div>
+      </div>
 
+      {/* Tab Navigation and Actions */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
         {/* Tab Navigation */}
         <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
@@ -126,4 +116,5 @@ const DirectionsContent = () => {
   )
 }
 
-export default DirectionsContent
+export default DireccionesContent
+
