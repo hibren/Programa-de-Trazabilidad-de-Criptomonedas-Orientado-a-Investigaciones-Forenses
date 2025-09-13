@@ -1,4 +1,3 @@
-import SearchBar from "../molecules/SearchBar"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 
@@ -14,8 +13,6 @@ const TopBar = ({ title = "Dashboard Principal", subtitle = "Monitoreo y anális
 
         {/* Actions Section */}
         <div className="flex items-center space-x-4">
-          <SearchBar placeholder="Buscar dirección, hash de transacción o número de bloque..." className="w-96" />
-
           <Button variant="success">
             <Icon name="bell" size={16} className="mr-2" />
             Conectar Billetera
@@ -37,3 +34,4 @@ const TopBar = ({ title = "Dashboard Principal", subtitle = "Monitoreo y anális
 }
 
 export default TopBar
+

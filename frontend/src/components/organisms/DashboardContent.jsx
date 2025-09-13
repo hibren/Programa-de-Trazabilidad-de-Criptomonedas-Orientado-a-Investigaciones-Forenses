@@ -1,8 +1,13 @@
+"use client"
+import { useState } from "react"
+import SearchBar from "../molecules/SearchBar"
 import StatCard from "../molecules/StatCard"
 import Icon from "../atoms/Icon"
 import Badge from "../atoms/Badge"
 
 const DashboardContent = () => {
+  const [searchQuery, setSearchQuery] = useState("")
+
   const stats = [
     {
       title: "Direcciones Vigiladas",
@@ -36,6 +41,15 @@ const DashboardContent = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Search Bar */}
+      <div className="mb-6">
+        <SearchBar
+          placeholder="Buscar dirección, hash de transacción o número de bloque..."
+          className="w-full max-w-md"
+          onSearch={(query) => setSearchQuery(query)}
+        />
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
