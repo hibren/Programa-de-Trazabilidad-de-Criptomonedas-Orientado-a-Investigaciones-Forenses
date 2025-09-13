@@ -51,10 +51,13 @@ const DireccionesContent = () => {
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <TopBar />
+      {/* Header con título personalizado */}
+      <TopBar 
+        title="Gestión de Direcciones"
+        subtitle="Administra y monitorea direcciones blockchain"
+      />
 
-      {/* Search Bar - Ahora con padding igual que DashboardContent */}
+      {/* Search Bar */}
       <div className="p-6 pb-0">
         <div className="mb-6">
           <SearchBar
@@ -67,7 +70,6 @@ const DireccionesContent = () => {
 
       {/* Tab Navigation and Actions */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        {/* Tab Navigation */}
         <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
