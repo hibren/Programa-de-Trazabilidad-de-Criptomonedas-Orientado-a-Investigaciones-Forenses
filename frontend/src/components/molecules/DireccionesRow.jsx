@@ -15,9 +15,9 @@ const DireccionesRow = ({ direccion, balance, ultimaActividad, transacciones, en
   }
 
   return (
-    <div className="grid grid-cols-5 gap-4 py-4 px-6 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <div className="flex flex-col">
-        <span className="font-mono text-sm text-gray-900">{direccion}</span>
+    <div className="grid grid-cols-6 gap-6 py-4 px-6 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <div className="col-span-2 flex flex-col min-w-0">
+        <span className="font-mono text-sm text-gray-900 truncate">{direccion}</span>
         <span className="text-xs text-gray-500">Balance: {balance}</span>
         <span className="text-xs text-gray-500">Última actividad: {ultimaActividad}</span>
       </div>
