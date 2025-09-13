@@ -50,8 +50,8 @@ async def delete_transaccion(transaccion_id: str) -> int:
     result = await transaccion_collection.delete_one({"_id": PyObjectId(transaccion_id)})
     return result.deleted_count
 
-async def _fetch_raw_transactions_by_address(address: str) -> List[dict]:
-    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full"
+async def _fetch_raw_transactions_by_address(address: str, limit: int = 10) -> List[dict]:
+    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full?limit={limit}"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
