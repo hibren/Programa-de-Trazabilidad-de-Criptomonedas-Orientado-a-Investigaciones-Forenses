@@ -3,6 +3,7 @@ import Checkbox from "@/components/atoms/Checkbox"
 import Card from "@/components/molecules/Card"
 import CardContent from "@/components/molecules/CardContent"
 import FormField from "@/components/molecules/FormField"
+import PasswordField from "@/components/molecules/PasswordField"
 
 export default function LoginPage() {
   return (
@@ -64,10 +65,9 @@ export default function LoginPage() {
                   required
                 />
 
-                <FormField
+                <PasswordField
                   id="password"
                   label="Contraseña"
-                  type="password"
                   placeholder="••••••••"
                   required
                 />
