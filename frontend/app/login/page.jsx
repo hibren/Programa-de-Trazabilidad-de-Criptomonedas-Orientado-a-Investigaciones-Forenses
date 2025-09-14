@@ -1,5 +1,8 @@
 import Button from "@/components/atoms/Button"
-import Input from "@/components/atoms/Input"
+import Checkbox from "@/components/atoms/Checkbox"
+import Card from "@/components/molecules/Card"
+import CardContent from "@/components/molecules/CardContent"
+import FormField from "@/components/molecules/FormField"
 
 export default function LoginPage() {
   return (
@@ -44,54 +47,55 @@ export default function LoginPage() {
 
       {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-          <div className="space-y-1 mb-6">
-            <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
-            <p className="text-center text-gray-600">Ingresa tus credenciales para acceder a BlockAnalyzer</p>
-          </div>
-
-          <form className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <Input id="email" type="email" placeholder="tu@email.com" className="w-full" />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Contraseña
-              </label>
-              <Input id="password" type="password" placeholder="••••••••" className="w-full" />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember" className="text-sm text-gray-700">
-                  Recordarme
-                </label>
+        <div className="w-full max-w-md">
+          <Card shadow="lg">
+            <CardContent>
+              <div className="space-y-1 mb-6">
+                <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
+                <p className="text-center text-gray-600">Ingresa tus credenciales para acceder a BlockAnalyzer</p>
               </div>
-              <a href="#" className="text-sm text-green-600 hover:underline">
-                ¿Olvidaste tu contraseña?
-              </a>
-            </div>
 
-            <Button type="submit" variant="success" className="w-full">
-              Iniciar Sesión
-            </Button>
-          </form>
+              <form className="space-y-4">
+                <FormField
+                  id="email"
+                  label="Email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  required
+                />
 
-          <div className="text-center text-sm text-gray-600 mt-6">
-            ¿No tienes una cuenta?{" "}
-            <a href="#" className="text-green-600 hover:underline">
-              Contacta al administrador
-            </a>
-          </div>
+                <FormField
+                  id="password"
+                  label="Contraseña"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                />
+
+                <div className="flex items-center justify-between">
+                  <Checkbox
+                    id="remember"
+                    label="Recordarme"
+                    variant="success"
+                  />
+                  <a href="#" className="text-sm text-green-600 hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+
+                <Button type="submit" variant="success" className="w-full">
+                  Iniciar Sesión
+                </Button>
+              </form>
+
+              <div className="text-center text-sm text-gray-600 mt-6">
+                ¿No tienes una cuenta?{" "}
+                <a href="#" className="text-green-600 hover:underline">
+                  Contacta al administrador
+                </a>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
