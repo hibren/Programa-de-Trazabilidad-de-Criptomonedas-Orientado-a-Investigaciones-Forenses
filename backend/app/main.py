@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from app.routers import direccion, bloque, transaccion
+from app.routers import direccion, bloque, transaccion, reporte
 
 app = FastAPI(title="Trazabilidad de Criptomonedas", version="1.0.0")
 
@@ -8,6 +8,7 @@ app = FastAPI(title="Trazabilidad de Criptomonedas", version="1.0.0")
 app.include_router(direccion.router)
 app.include_router(bloque.router)
 app.include_router(transaccion.router)
+app.include_router(reporte.router)
 
 @app.get("/")
 async def root():
