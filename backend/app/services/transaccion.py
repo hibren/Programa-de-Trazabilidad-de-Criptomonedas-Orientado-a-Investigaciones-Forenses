@@ -88,6 +88,7 @@ async def fetch_and_save_transactions_by_address(address: str) -> List[Transacci
             saved_transactions.append(existing_tx)
             continue
 
+        # Bloque asociado
         block_id = None
         block_hash = tx_data.get("block_hash")
         if block_hash:
@@ -95,6 +96,7 @@ async def fetch_and_save_transactions_by_address(address: str) -> List[Transacci
             if bloque:
                 block_id = bloque.id
 
+        # Inputs
         input_ids = []
         for vin in tx_data.get("inputs", []):
             for addr in vin.get("addresses", []):
@@ -102,6 +104,7 @@ async def fetch_and_save_transactions_by_address(address: str) -> List[Transacci
                     direccion = await fetch_and_save_direccion(addr)
                     input_ids.append(direccion.id)
 
+        # Outputs
         output_ids = []
         for vout in tx_data.get("outputs", []):
             for addr in vout.get("addresses", []):
@@ -109,26 +112,32 @@ async def fetch_and_save_transactions_by_address(address: str) -> List[Transacci
                     direccion = await fetch_and_save_direccion(addr)
                     output_ids.append(direccion.id)
 
+        # Fecha
         fecha_str = tx_data.get("confirmed")
         fecha_obj = datetime.fromisoformat(fecha_str.replace("Z", "+00:00")) if fecha_str else datetime.now()
 
+        # Crear documento de transacción
         transaccion_doc = {
             "hash": tx_hash,
             "fecha": fecha_obj,
             "inputs": input_ids,
             "outputs": output_ids,
-            "monto_total": float(tx_data.get("total", 0)) / 100000000,
+            "monto_total": float(tx_data.get("total", 0)) / 100000000,  # satoshis → BTC
             "estado": "confirmada" if tx_data.get("block_height", -1) > 0 else "pendiente",
             "patrones_sospechosos": [],
             "bloque": block_id,
+            "fees": float(tx_data.get("fees", 0)) / 100000000,  # satoshis → BTC
+            "confirmations": int(tx_data.get("confirmations", 0)),
         }
 
+        # Guardar en Mongo
         result = await transaccion_collection.insert_one(transaccion_doc)
         created = await transaccion_collection.find_one({"_id": result.inserted_id})
         if created:
             saved_transactions.append(TransaccionModel(**created))
 
     return saved_transactions
+
 
 async def fetch_transactions_by_address(address: str) -> List[dict]:
     await fetch_and_save_transactions_by_address(address)
