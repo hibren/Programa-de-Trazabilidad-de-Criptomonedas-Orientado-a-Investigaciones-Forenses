@@ -5,7 +5,7 @@ from app.database import reporte_collection
 from app.models.reporte import Reporte
 from datetime import datetime
 
-CHAINABUSE_API_KEY = "ca_QWQ2YkNGVmRBdDY2M3VQV3dLU2RSNFFHLlhCM2U5YjF3V1lrRi80K1hwYVNHbGc9PQ"
+CHAINABUSE_API_KEY = "YOUR_CHAINABUSE_API_KEY"
 
 async def get_all_reportes() -> List[Reporte]:
     reportes_cursor = reporte_collection.find()
