@@ -16,8 +16,8 @@ async def fetch_reportes_by_address(address: str) -> List[Reporte]:
     if CHAINABUSE_API_KEY == "YOUR_CHAINABUSE_API_KEY":
         raise ValueError("La API key de ChainAbuse no ha sido configurada.")
 
-    # Encode the API key for Basic Authentication
-    auth_string = f"{CHAINABUSE_API_KEY}:{CHAINABUSE_API_KEY}"
+    # Encode API key as "api_key:"
+    auth_string = f"{CHAINABUSE_API_KEY}:"
     api_key_encoded = base64.b64encode(auth_string.encode()).decode()
 
     headers = {
@@ -25,14 +25,13 @@ async def fetch_reportes_by_address(address: str) -> List[Reporte]:
         "authorization": f"Basic {api_key_encoded}"
     }
 
-    # Use v0 API with address as a query parameter
-    url = f"https://api.chainabuse.com/v0/reports?address={address}"
+    url = f"https://api.chainabuse.com/v0/reports?address={address}&includePrivate=false&page=1&perPage=50"
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, headers=headers)
             if response.status_code == 404:
-                return [] # Not found, return empty list
+                return []
             response.raise_for_status()
             data = response.json()
         except httpx.HTTPStatusError as e:
@@ -60,12 +59,11 @@ async def fetch_reportes_by_address(address: str) -> List[Reporte]:
         except ValueError:
             created_at_dt = datetime.now()
 
-        # Extract domains from the addresses list
         domains = [addr.get("domain") for addr in report_data.get("addresses", []) if addr.get("domain")]
 
         report_doc = {
             "chainabuse_id": chainabuse_id,
-            "id_direccion": address, # The address we searched for
+            "id_direccion": address,
             "scamCategory": report_data["scamCategory"],
             "createdAt": created_at_dt,
             "trusted": report_data.get("trusted", False),
