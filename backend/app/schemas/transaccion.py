@@ -12,6 +12,8 @@ class TransaccionCreateSchema(BaseModel):
     estado: str
     patrones_sospechosos: List[str] = Field(default_factory=list)
     bloque: Optional[str] = None
+    fees: Optional[float] = 0               # <-- nuevo campo
+    confirmations: Optional[int] = 0        # <-- nuevo campo
 
 class TransaccionResponseSchema(BaseModel):
     id: str = Field(alias="_id")
@@ -23,6 +25,8 @@ class TransaccionResponseSchema(BaseModel):
     estado: str
     patrones_sospechosos: List[str]
     bloque: Optional[str] = None
+    fees: Optional[float] = 0
+    confirmations: Optional[int] = 0
 
     class Config:
         arbitrary_types_allowed = True

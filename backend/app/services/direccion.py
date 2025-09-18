@@ -36,31 +36,42 @@ async def delete_direccion(direccion_id: str) -> int:
     return result.deleted_count
 
 async def fetch_and_save_direccion(address: str) -> DireccionModel:
-    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}"
+    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full"
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=20.0) as client:
         try:
             response = await client.get(url)
             response.raise_for_status()
-            try:
-                data = response.json()
-            except ValueError:
-                raise ValueError("La respuesta de la API no es JSON válido")
-            
+            data = response.json()
             if "error" in data:
-                raise ValueError(data["error"])  # API devolvió error
+                raise ValueError(data["error"])
         except httpx.HTTPStatusError as e:
             raise Exception(f"Error HTTP: {e.response.text}") from e
         except httpx.RequestError as e:
             raise Exception(f"Error de conexión con la API: {str(e)}") from e
 
-    # Solo guardamos si no hubo error
+    txs = data.get("txs", [])
+    primer_tx = None
+    ultima_tx = None
+    if txs:
+        # Las transacciones vienen ordenadas por BlockCypher de más reciente a más antigua
+        ultima_tx = txs[0].get("confirmed")
+        primer_tx = txs[-1].get("confirmed")
+
     doc = {
         "direccion": address,
         "balance": float(data.get("balance", 0)),
+        "unconfirmed_balance": float(data.get("unconfirmed_balance", 0)),
+        "final_balance": float(data.get("final_balance", 0)),
         "total_recibido": float(data.get("total_received", 0)),
         "total_enviado": float(data.get("total_sent", 0)),
         "perfil_riesgo": "bajo",
+        "n_tx": int(data.get("n_tx", 0)),
+        "unconfirmed_n_tx": int(data.get("unconfirmed_n_tx", 0)),
+        "final_n_tx": int(data.get("final_n_tx", 0)),
+        "has_more": bool(data.get("hasMore", False)),
+        "primer_tx": primer_tx,
+        "ultima_tx": ultima_tx,
     }
 
     existing = await direccion_collection.find_one({"direccion": address})
@@ -72,3 +83,4 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
         doc["_id"] = result.inserted_id
 
     return DireccionModel(**doc)
+

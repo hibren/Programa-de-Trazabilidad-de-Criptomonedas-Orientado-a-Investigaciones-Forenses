@@ -13,6 +13,8 @@ class TransaccionModel(BaseModel):
     estado: str
     patrones_sospechosos: List[str] = Field(default_factory=list)
     bloque: Optional[PyObjectId] = None
+    fees: Optional[float] = 0                  # <-- nuevo campo
+    confirmations: Optional[int] = 0           # <-- nuevo campo
 
     @field_validator('patrones_sospechosos', mode='before')
     @classmethod
