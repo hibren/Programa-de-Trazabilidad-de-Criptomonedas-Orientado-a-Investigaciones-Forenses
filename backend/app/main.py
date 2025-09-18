@@ -1,10 +1,21 @@
 # app/main.py
 from fastapi import FastAPI
 from app.routers import direccion, bloque, transaccion, reporte
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Trazabilidad de Criptomonedas", version="1.0.0")
 
-# Incluir routers
+# CORS configuration - ADD THIS BEFORE ANY ROUTES
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 🔥 abierto en dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Include routers AFTER CORS middleware
 app.include_router(direccion.router)
 app.include_router(bloque.router)
 app.include_router(transaccion.router)

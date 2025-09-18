@@ -1,16 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 import TopBar from "@/components/organisms/TopBar"
 import TabNavigation from "../molecules/TabNavigation"
 import DireccionesRow from "../molecules/DireccionesRow"
 import SearchBar from "@/components/molecules/SearchBar"
+import { getDirecciones, fetchDireccionFromAPI } from "@/services/direccionesService"
 
 const DireccionesContent = () => {
   const [activeTab, setActiveTab] = useState("direcciones")
   const [searchQuery, setSearchQuery] = useState("")
+  const [direcciones, setDirecciones] = useState([])
+
+  // Cargar direcciones desde BD
+  const loadDirecciones = async () => {
+    try {
+      const data = await getDirecciones()
+      setDirecciones(data)
+    } catch (e) {
+      console.error(e.message)
+    }
+  }
+
+  // Importar desde API externa
+  const importarDesdeAPI = async () => {
+    const address = prompt("Ingrese la dirección a importar desde la API:")
+    if (!address) return
+    try {
+      await fetchDireccionFromAPI(address)
+      await loadDirecciones()
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
+  useEffect(() => {
+    loadDirecciones()
+  }, [])
 
   const tabs = [
     { id: "direcciones", label: "Direcciones" },
@@ -19,45 +47,15 @@ const DireccionesContent = () => {
     { id: "historial", label: "Historial" },
   ]
 
-  const direcciones = [
-    {
-      direccion: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-      balance: "50.00000000 BTC",
-      ultimaActividad: "2024-01-15",
-      transacciones: "1247",
-      entradas: "892",
-      salidas: "355",
-      nivelRiesgo: "Bajo",
-    },
-    {
-      direccion: "3J98t1pEZ73CNmQviecrnyiWrnqRhWNLy",
-      balance: "12.50000000 BTC",
-      ultimaActividad: "2024-01-14",
-      transacciones: "892",
-      entradas: "445",
-      salidas: "447",
-      nivelRiesgo: "Alto",
-    },
-    {
-      direccion: "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
-      balance: "0.00000000 BTC",
-      ultimaActividad: "2024-01-13",
-      transacciones: "2156",
-      entradas: "1078",
-      salidas: "1078",
-      nivelRiesgo: "Medio",
-    },
-  ]
-
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Header con título personalizado */}
+      {/* Header */}
       <TopBar 
         title="Gestión de Direcciones"
         subtitle="Administra y monitorea direcciones blockchain"
       />
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="p-6 pb-0">
         <div className="mb-6">
           <SearchBar
@@ -68,19 +66,15 @@ const DireccionesContent = () => {
         </div>
       </div>
 
-      {/* Tab Navigation and Actions */}
+      {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Action Buttons */}
+      {/* Botones de acción */}
       <div className="bg-white px-6 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <Button variant="success">
-            <span className="mr-2">+</span>
-            Registrar Dirección
-          </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={importarDesdeAPI}>
             <Icon name="monitor" size={16} className="mr-2" />
             Importar desde API
           </Button>
@@ -91,23 +85,22 @@ const DireccionesContent = () => {
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Tabla */}
       <div className="bg-white mx-6 mt-6 rounded-lg shadow-sm">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Direcciones Registradas</h2>
           <p className="text-sm text-gray-600">Gestión y visualización de direcciones blockchain</p>
         </div>
 
-        {/* Table Header */}
         <div className="grid grid-cols-5 gap-4 py-3 px-6 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-700">
-          <div>Dirección</div>
-          <div className="text-center">Transacciones</div>
-          <div className="text-center">Entradas</div>
-          <div className="text-center">Salidas</div>
-          <div className="text-center">Riesgo</div>
-        </div>
+  <div className="col-span-2">Dirección</div>
+  <div className="text-center">Entradas</div>
+  <div className="text-center">Salidas</div>
+  <div className="text-center">Riesgo</div>
+</div>
 
-        {/* Address Rows */}
+
+
         <div>
           {direcciones.map((direccion, index) => (
             <DireccionesRow key={index} {...direccion} />
