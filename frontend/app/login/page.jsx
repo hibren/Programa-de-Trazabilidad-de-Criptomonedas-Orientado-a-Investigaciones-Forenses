@@ -4,56 +4,34 @@ import Card from "@/components/molecules/Card"
 import CardContent from "@/components/molecules/CardContent"
 import FormField from "@/components/molecules/FormField"
 import PasswordField from "@/components/molecules/PasswordField"
+import Image from "next/image"
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Green with Logo and Branding */}
-      <div className="flex-1 bg-green-900 flex flex-col justify-center items-center p-8 text-white">
-        <div className="max-w-md text-center space-y-6">
-          {/* Logo */}
-          <div className="flex items-center justify-center space-x-3 mb-8">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-green-600 font-bold text-xl">BA</span>
-            </div>
-            <h1 className="text-3xl font-bold">BlockAnalyzer</h1>
-          </div>
-
-          {/* Tagline */}
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold leading-tight">Monitoreo y análisis de blockchain en tiempo real</h2>
-            <p className="text-lg opacity-90 leading-relaxed">
-              Plataforma profesional para el análisis de transacciones, monitoreo de direcciones y detección de riesgos
-              en blockchain.
-            </p>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-3 text-left">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span>Análisis de transacciones en tiempo real</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span>Detección automática de riesgos</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-              <span>Monitoreo de direcciones vigiladas</span>
-            </div>
-          </div>
+    <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-green-50 to-gray-100">
+      {/* Left Side - Responsive Rounded Logo */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="relative w-48 h-48 sm:w-64 sm:h-64 lg:w-[32rem] lg:h-[32rem] rounded-3xl overflow-hidden shadow-2xl">
+          <Image
+            src="/logo2.png"
+            alt="Block Analyzer Logo"
+            fill
+            className="object-contain"
+            priority
+          />
         </div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <Card shadow="lg">
             <CardContent>
               <div className="space-y-1 mb-6">
                 <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
-                <p className="text-center text-gray-600">Ingresa tus credenciales para acceder a BlockAnalyzer</p>
+                <p className="text-center text-gray-600">
+                  Ingresa tus credenciales para acceder a BlockAnalyzer
+                </p>
               </div>
 
               <form className="space-y-4">
@@ -64,7 +42,6 @@ export default function LoginPage() {
                   placeholder="tu@email.com"
                   required
                 />
-
                 <PasswordField
                   id="password"
                   label="Contraseña"
@@ -73,11 +50,7 @@ export default function LoginPage() {
                 />
 
                 <div className="flex items-center justify-between">
-                  <Checkbox
-                    id="remember"
-                    label="Recordarme"
-                    variant="success"
-                  />
+                  <Checkbox id="remember" label="Recordarme" variant="success" />
                   <a href="#" className="text-sm text-green-600 hover:underline">
                     ¿Olvidaste tu contraseña?
                   </a>
@@ -101,3 +74,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
+
+
+
