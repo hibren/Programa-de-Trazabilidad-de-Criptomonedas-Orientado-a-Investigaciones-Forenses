@@ -22,7 +22,7 @@ export default function FormField({
         id={id}
         type={type}
         placeholder={placeholder}
-        className={`w-full ${error ? 'border-red-500 focus:ring-red-500' : ''} ${inputClassName}`}
+        className={`w-full border border-gray-300 rounded-md focus:outline-none ${error ? 'border-red-500' : ''} ${inputClassName}`}
         {...props}
       />
       {error && (

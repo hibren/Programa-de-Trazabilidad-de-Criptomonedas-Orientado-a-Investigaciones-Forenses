@@ -20,7 +20,7 @@ export default function PasswordField({
       <PasswordInput
         id={id}
         placeholder={placeholder}
-        className={error ? 'border-red-500 focus-visible:ring-red-500' : ''}
+        className={`w-full border border-gray-300 rounded-md focus:outline-none ${error ? 'border-red-500' : ''} ${inputClassName}`}
         {...props}
       />
       {error && (
