@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import NavItem from "../molecules/NavItem"
 
 const Sidebar = ({ activeItem = "dashboard" }) => {
@@ -26,8 +27,14 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
       {/* Logo/Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-2 text-white">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <span className="text-green-800 font-bold text-sm">BA</span>
+          <div className="w-10 h-10 relative">
+            <Image
+              src="/icono.png"
+              alt="BlockAnalyzer Icon"
+              fill
+              className="object-cover rounded-full"
+              priority
+            />
           </div>
           <span className="font-bold text-lg">BlockAnalyzer</span>
         </div>
@@ -36,10 +43,10 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
       {/* Navigation */}
       <nav className="space-y-2">
         {navItems.map((item) => (
-          <NavItem 
-            key={item.id} 
-            icon={item.icon} 
-            label={item.label} 
+          <NavItem
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
             href={item.href}
             active={currentActive === item.id}
             onClick={() => handleItemClick(item.id)}
