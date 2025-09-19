@@ -9,10 +9,26 @@ import DireccionesRow from "../molecules/DireccionesRow"
 import SearchBar from "@/components/molecules/SearchBar"
 import { getDirecciones, fetchDireccionFromAPI } from "@/services/direccionesService"
 
+// shadcn dialog
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+
 const DireccionesContent = () => {
   const [activeTab, setActiveTab] = useState("direcciones")
   const [searchQuery, setSearchQuery] = useState("")
   const [direcciones, setDirecciones] = useState([])
+
+  // Estado del Dialog
+  const [open, setOpen] = useState(false)
+  const [address, setAddress] = useState("")
 
   // Cargar direcciones desde BD
   const loadDirecciones = async () => {
@@ -25,12 +41,13 @@ const DireccionesContent = () => {
   }
 
   // Importar desde API externa
-  const importarDesdeAPI = async () => {
-    const address = prompt("Ingrese la dirección a importar desde la API:")
+  const handleImportar = async () => {
     if (!address) return
     try {
       await fetchDireccionFromAPI(address)
       await loadDirecciones()
+      setAddress("")
+      setOpen(false) // cerrar modal
     } catch (e) {
       alert(e.message)
     }
@@ -74,10 +91,36 @@ const DireccionesContent = () => {
       {/* Botones de acción */}
       <div className="bg-white px-6 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <Button variant="outline" onClick={importarDesdeAPI}>
-            <Icon name="monitor" size={16} className="mr-2" />
-            Importar desde API
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Icon name="monitor" size={16} className="mr-2" />
+                Importar desde API
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Importar Dirección</DialogTitle>
+                <DialogDescription>
+                  Ingrese la dirección blockchain que desea importar desde la API externa.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <Input
+                  placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleImportar}>Importar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button variant="outline">
             <Icon name="reports" size={16} className="mr-2" />
             Exportar Datos
@@ -93,13 +136,11 @@ const DireccionesContent = () => {
         </div>
 
         <div className="grid grid-cols-5 gap-4 py-3 px-6 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-700">
-  <div className="col-span-2">Dirección</div>
-  <div className="text-center">Entradas</div>
-  <div className="text-center">Salidas</div>
-  <div className="text-center">Riesgo</div>
-</div>
-
-
+          <div className="col-span-2">Dirección</div>
+          <div className="text-center">Entradas</div>
+          <div className="text-center">Salidas</div>
+          <div className="text-center">Riesgo</div>
+        </div>
 
         <div>
           {direcciones.map((direccion, index) => (
@@ -112,4 +153,5 @@ const DireccionesContent = () => {
 }
 
 export default DireccionesContent
+
 
