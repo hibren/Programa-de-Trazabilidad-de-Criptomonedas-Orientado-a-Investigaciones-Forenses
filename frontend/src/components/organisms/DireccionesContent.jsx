@@ -9,8 +9,9 @@ import SearchBar from "@/components/molecules/SearchBar"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { getColumnsDirecciones } from "@/components/DataTable/columns/getColumnsDirecciones"
 import { getDirecciones, fetchDireccionFromAPI } from "@/services/direccionesService"
-
-// shadcn dialog
+import * as XLSX from "xlsx"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 import {
   Dialog,
   DialogTrigger,
@@ -21,6 +22,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+
 
 const DireccionesContent = () => {
   const [activeTab, setActiveTab] = useState("direcciones")
@@ -61,6 +69,43 @@ const DireccionesContent = () => {
     { id: "bloques", label: "Bloques" },
     { id: "historial", label: "Historial" },
   ]
+
+const exportToExcel = () => {
+  // filtrar solo las columnas que quieras exportar
+  const data = direcciones.map(d => ({
+    Dirección: d.direccion,
+    "Entradas (BTC)": d.total_recibido,
+    "Salidas (BTC)": d.total_enviado,
+    "Perfil de Riesgo": d.perfil_riesgo,
+  }))
+
+  const worksheet = XLSX.utils.json_to_sheet(data)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Direcciones")
+  XLSX.writeFile(workbook, "direcciones.xlsx")
+}
+
+
+// Exportar a PDF
+const exportToPDF = () => {
+  const doc = new jsPDF()
+  doc.text("Direcciones Registradas", 14, 15)
+
+  autoTable(doc, {
+    startY: 20,
+    head: [["Dirección", "Entradas", "Salidas", "Riesgo"]],
+    body: direcciones.map((d) => [
+      d.direccion,
+      d.total_recibido,
+      d.total_enviado,
+      d.perfil_riesgo,
+    ]),
+  })
+
+  doc.save("direcciones.pdf")
+}
+
+
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
@@ -118,10 +163,24 @@ const DireccionesContent = () => {
             </Dialog>
 
             {/* Exportar datos */}
-            <Button variant="outline">
-              <Icon name="reports" size={16} className="mr-2" />
-              Exportar Datos
-            </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Icon name="reports" size={16} className="mr-2" />
+                    Exportar Datos
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToExcel}>
+                    Exportar a Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToPDF}>
+                    Exportar a PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+
           </div>
         </div>
 
