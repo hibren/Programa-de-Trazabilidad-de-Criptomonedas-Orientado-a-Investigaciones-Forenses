@@ -1,4 +1,5 @@
 import '../src/styles/globals.css' // tus estilos globales
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata = {
   title: 'Trazabilidad de Criptomonedas',
@@ -10,6 +11,7 @@ export default function RootLayout({ children }) {
     <html lang="es">
       <body>
         {children}
+        <Toaster />
       </body>
     </html>
   )

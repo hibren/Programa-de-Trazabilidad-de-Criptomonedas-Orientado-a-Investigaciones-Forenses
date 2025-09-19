@@ -29,12 +29,16 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 
+// 👇 Toast y iconos
+import { useToast } from "@/components/ui/use-toast"
+import { CheckCircle, XCircle } from "lucide-react"
 
 const DireccionesContent = () => {
   const [activeTab, setActiveTab] = useState("direcciones")
   const [direcciones, setDirecciones] = useState([])
   const [open, setOpen] = useState(false)
   const [address, setAddress] = useState("")
+  const { toast } = useToast()
 
   // Cargar direcciones desde BD
   const loadDirecciones = async () => {
@@ -48,14 +52,46 @@ const DireccionesContent = () => {
 
   // Importar desde API externa
   const handleImportar = async () => {
-    if (!address) return
+    if (!address) {
+      toast({
+        variant: "destructive",
+        title: (
+          <div className="flex items-center gap-2 text-red-600">
+            <XCircle className="h-5 w-5" />
+            <span>Error</span>
+          </div>
+        ),
+        description: "Debe ingresar una dirección antes de importar.",
+      })
+      return
+    }
+
     try {
       await fetchDireccionFromAPI(address)
       await loadDirecciones()
       setAddress("")
-      setOpen(false) // cerrar modal
+      setOpen(false)
+
+      toast({
+        title: (
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle className="h-5 w-5" />
+            <span>Importación exitosa</span>
+          </div>
+        ),
+        description: "La dirección fue importada correctamente.",
+      })
     } catch (e) {
-      alert(e.message)
+      toast({
+        variant: "destructive",
+        title: (
+          <div className="flex items-center gap-2 text-red-600">
+            <XCircle className="h-5 w-5" />
+            <span>Error en la importación</span>
+          </div>
+        ),
+        description: e.message || "Revisar la dirección e intente nuevamente.",
+      })
     }
   }
 
@@ -70,42 +106,37 @@ const DireccionesContent = () => {
     { id: "historial", label: "Historial" },
   ]
 
-const exportToExcel = () => {
-  // filtrar solo las columnas que quieras exportar
-  const data = direcciones.map(d => ({
-    Dirección: d.direccion,
-    "Entradas (BTC)": d.total_recibido,
-    "Salidas (BTC)": d.total_enviado,
-    "Perfil de Riesgo": d.perfil_riesgo,
-  }))
+  const exportToExcel = () => {
+    const data = direcciones.map((d) => ({
+      Dirección: d.direccion,
+      "Entradas (BTC)": d.total_recibido,
+      "Salidas (BTC)": d.total_enviado,
+      "Perfil de Riesgo": d.perfil_riesgo,
+    }))
 
-  const worksheet = XLSX.utils.json_to_sheet(data)
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Direcciones")
-  XLSX.writeFile(workbook, "direcciones.xlsx")
-}
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Direcciones")
+    XLSX.writeFile(workbook, "direcciones.xlsx")
+  }
 
+  const exportToPDF = () => {
+    const doc = new jsPDF()
+    doc.text("Direcciones Registradas", 14, 15)
 
-// Exportar a PDF
-const exportToPDF = () => {
-  const doc = new jsPDF()
-  doc.text("Direcciones Registradas", 14, 15)
+    autoTable(doc, {
+      startY: 20,
+      head: [["Dirección", "Entradas", "Salidas", "Riesgo"]],
+      body: direcciones.map((d) => [
+        d.direccion,
+        d.total_recibido,
+        d.total_enviado,
+        d.perfil_riesgo,
+      ]),
+    })
 
-  autoTable(doc, {
-    startY: 20,
-    head: [["Dirección", "Entradas", "Salidas", "Riesgo"]],
-    body: direcciones.map((d) => [
-      d.direccion,
-      d.total_recibido,
-      d.total_enviado,
-      d.perfil_riesgo,
-    ]),
-  })
-
-  doc.save("direcciones.pdf")
-}
-
-
+    doc.save("direcciones.pdf")
+  }
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
@@ -163,24 +194,22 @@ const exportToPDF = () => {
             </Dialog>
 
             {/* Exportar datos */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <Icon name="reports" size={16} className="mr-2" />
-                    Exportar Datos
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportToExcel}>
-                    Exportar a Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToPDF}>
-                    Exportar a PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Icon name="reports" size={16} className="mr-2" />
+                  Exportar Datos
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToExcel}>
+                  Exportar a Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF}>
+                  Exportar a PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -192,6 +221,8 @@ const exportToPDF = () => {
 }
 
 export default DireccionesContent
+
+
 
 
 
