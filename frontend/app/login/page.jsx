@@ -8,24 +8,25 @@ import Image from "next/image"
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-green-50 to-gray-100">
-      {/* Left Side - Responsive Rounded Logo */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="relative w-48 h-48 sm:w-64 sm:h-64 lg:w-[32rem] lg:h-[32rem] rounded-3xl overflow-hidden shadow-2xl">
-          <Image
-            src="/logo2.png"
-            alt="Block Analyzer Logo"
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
-      </div>
+    <div className="min-h-screen flex">
+      {/* Left Side - Green Background with Logo */}
+      <div className="flex-1 bg-green-900 relative">
+  <Image
+    src="/fotologin.png"
+    alt="Block Analyzer Background"
+    fill
+    className="object-cover"
+    priority
+  />
+  <div className="absolute inset-0 bg-green-900/70" /> {/* overlay */}
+</div>
+
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-green-50 to-gray-100">
         <div className="w-full max-w-md">
-          <Card shadow="lg">
+          <Card shadow="2xl" className="rounded-2xl">
+
             <CardContent>
               <div className="space-y-1 mb-6">
                 <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
@@ -56,9 +57,13 @@ export default function LoginPage() {
                   </a>
                 </div>
 
-                <Button type="submit" variant="success" className="w-full">
-                  Iniciar Sesión
-                </Button>
+                <Button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500"
+              >
+                Iniciar Sesión
+              </Button>
+
               </form>
 
               <div className="text-center text-sm text-gray-600 mt-6">
@@ -74,6 +79,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
 
 
 
