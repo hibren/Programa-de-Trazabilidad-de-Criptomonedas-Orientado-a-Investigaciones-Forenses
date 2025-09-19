@@ -1,7 +1,7 @@
 import '../src/styles/globals.css' // tus estilos globales
 
 export const metadata = {
-  title: 'Mi Proyecto',
+  title: 'Trazabilidad de Criptomonedas',
   description: 'Descripción del proyecto',
 }
 
