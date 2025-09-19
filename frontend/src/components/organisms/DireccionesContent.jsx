@@ -116,8 +116,11 @@ const DireccionesContent = () => {
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleImportar}>Importar</Button>
+                <Button variant="success" onClick={handleImportar}>
+                  Importar
+                </Button>
               </DialogFooter>
+
             </DialogContent>
           </Dialog>
 
