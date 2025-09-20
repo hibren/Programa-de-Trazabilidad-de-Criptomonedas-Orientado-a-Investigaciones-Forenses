@@ -11,6 +11,8 @@ from app.services.direccion import (
     fetch_and_save_direccion
 )
 from app.models.direccion import DireccionModel
+from app.services.transaccion import get_transacciones_by_direccion
+from app.schemas.transaccion import TransaccionResponseSchema
 
 router = APIRouter(prefix="/direcciones", tags=["direcciones"])
 
@@ -77,3 +79,14 @@ async def fetch_direccion(request: DireccionFetchRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/{direccion}/transacciones", response_model=List[TransaccionResponseSchema])
+async def get_transacciones_de_direccion(direccion: str):
+    direccion_doc = await get_direccion_by_value(direccion)
+    if not direccion_doc:
+        raise HTTPException(status_code=404, detail="Dirección no encontrada")
+
+    transacciones = await get_transacciones_by_direccion(str(direccion_doc.id))
+    return [t.dict(by_alias=True) for t in transacciones]
+

@@ -142,3 +142,17 @@ async def fetch_and_save_transactions_by_address(address: str) -> List[Transacci
 async def fetch_transactions_by_address(address: str) -> List[dict]:
     await fetch_and_save_transactions_by_address(address)
     return await _fetch_raw_transactions_by_address(address)
+
+#obtener las transacciones desde la bd 
+async def get_transacciones_by_direccion(direccion_id: str) -> List[TransaccionModel]:
+    direccion_obj_id = PyObjectId(direccion_id)
+
+    cursor = transaccion_collection.find({
+        "$or": [
+            {"inputs": direccion_obj_id},
+            {"outputs": direccion_obj_id}
+        ]
+    })
+
+    docs = await cursor.to_list(100)
+    return [TransaccionModel(**doc) for doc in docs]
