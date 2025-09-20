@@ -72,6 +72,7 @@ export default function DireccionDetail({ direccion }) {
               { accessorKey: "estado", header: "Estado" },
               { accessorKey: "confirmations", header: "Confirmaciones" },
             ]}
+            filterColumn="hash"
           />
         </div>
       </div>
