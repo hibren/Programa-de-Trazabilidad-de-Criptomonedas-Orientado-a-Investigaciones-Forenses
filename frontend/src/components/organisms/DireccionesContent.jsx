@@ -154,55 +154,57 @@ const DireccionesContent = () => {
 
           <div className="flex items-center space-x-3">
             {/* Importar desde API */}
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Icon name="monitor" size={16} className="mr-2" />
-                  Importar desde API
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Importar Dirección</DialogTitle>
-                  <DialogDescription>
-                    Ingrese la dirección blockchain que desea importar desde la API externa.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <Input
-                    placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button variant="success" onClick={handleImportar}>
-                    Importar
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+<Dialog open={open} onOpenChange={setOpen}>
+  <DialogTrigger asChild>
+    <Button variant="outline">
+      <Icon name="monitor" size={16} className="mr-2" />
+      {/* Texto visible solo en pantallas sm+ */}
+      <span className="hidden sm:inline">Importar desde API</span>
+    </Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Importar Dirección</DialogTitle>
+      <DialogDescription>
+        Ingrese la dirección blockchain que desea importar desde la API externa.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="grid gap-4 py-4">
+      <Input
+        placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+    </div>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setOpen(false)}>
+        Cancelar
+      </Button>
+      <Button variant="success" onClick={handleImportar}>
+        Importar
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
-            {/* Exportar datos */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Icon name="reports" size={16} className="mr-2" />
-                  Exportar Datos
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportToExcel}>
-                  Exportar a Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToPDF}>
-                  Exportar a PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+{/* Exportar datos */}
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline">
+      <Icon name="reports" size={16} className="mr-2" />
+      <span className="hidden sm:inline">Exportar Datos</span>
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={exportToExcel}>
+      Exportar a Excel
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={exportToPDF}>
+      Exportar a PDF
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+
           </div>
         </div>
 

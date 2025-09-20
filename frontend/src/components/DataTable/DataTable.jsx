@@ -91,9 +91,9 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
         </DropdownMenu>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-hidden rounded-md border">
-        <Table>
+      {/* Tabla responsive con scroll horizontal */}
+      <div className="overflow-x-auto rounded-md border">
+        <Table className="min-w-[600px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -160,3 +160,4 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
     </div>
   )
 }
+
