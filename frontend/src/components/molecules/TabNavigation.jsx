@@ -1,28 +1,45 @@
 "use client"
 
-import { cn } from "../../lib/utils"
+import * as React from "react"
+import * as TabsPrimitive from "@radix-ui/react-tabs"
+import { cn } from "@/lib/utils"
 
-const TabNavigation = ({ tabs, activeTab, onTabChange, className = "" }) => {
-  return (
-    <div className={cn("border-b border-gray-200", className)}>
-      <nav className="-mb-px flex overflow-x-auto no-scrollbar">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              "whitespace-nowrap py-2 px-3 border-b-2 font-medium text-sm transition-colors",
-              activeTab === tab.id
-                ? "border-green-600 text-green-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-    </div>
-  )
-}
+const Tabs = TabsPrimitive.Root
 
-export default TabNavigation
+const TabsList = React.forwardRef(({ className, ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    className={cn(
+      "flex overflow-x-auto no-scrollbar border-b border-gray-200 bg-white",
+      className
+    )}
+    {...props}
+  />
+))
+TabsList.displayName = TabsPrimitive.List.displayName
+
+const TabsTrigger = React.forwardRef(({ className, ...props }, ref) => (
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+      "data-[state=active]:border-green-600 data-[state=active]:text-green-600",
+      "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
+      className
+    )}
+    {...props}
+  />
+))
+TabsTrigger.displayName = TabsPrimitive.Trigger.displayName
+
+const TabsContent = React.forwardRef(({ className, ...props }, ref) => (
+  <TabsPrimitive.Content
+    ref={ref}
+    className={cn("mt-4", className)}
+    {...props}
+  />
+))
+TabsContent.displayName = TabsPrimitive.Content.displayName
+
+// 👉 Lo exportamos con el mismo nombre que usabas antes
+export { Tabs as TabNavigation, TabsList, TabsTrigger, TabsContent }

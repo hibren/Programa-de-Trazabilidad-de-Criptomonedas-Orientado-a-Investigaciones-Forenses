@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
-import TabNavigation from "../molecules/TabNavigation"
-import SearchBar from "@/components/molecules/SearchBar"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { getColumnsDirecciones } from "@/components/DataTable/columns/getColumnsDirecciones"
 import { getDirecciones, fetchDireccionFromAPI } from "@/services/direccionesService"
 import * as XLSX from "xlsx"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
+
 import {
   Dialog,
   DialogTrigger,
@@ -28,18 +27,16 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 
-// Toast e iconos
 import { useToast } from "@/components/ui/use-toast"
 import { CheckCircle, XCircle } from "lucide-react"
 
 const DireccionesContent = () => {
-  const [activeTab, setActiveTab] = useState("direcciones")
   const [direcciones, setDirecciones] = useState([])
   const [open, setOpen] = useState(false)
   const [address, setAddress] = useState("")
   const { toast } = useToast()
 
-  // Cargar direcciones desde BD
+  // Cargar direcciones desde la BD
   const loadDirecciones = async () => {
     try {
       const data = await getDirecciones()
@@ -98,13 +95,7 @@ const DireccionesContent = () => {
     loadDirecciones()
   }, [])
 
-  const tabs = [
-    { id: "direcciones", label: "Direcciones" },
-    { id: "transacciones", label: "Transacciones" },
-    { id: "bloques", label: "Bloques" },
-    { id: "historial", label: "Historial" },
-  ]
-
+  // Exportar a Excel
   const exportToExcel = () => {
     const data = direcciones.map((d) => ({
       Dirección: d.direccion,
@@ -119,6 +110,7 @@ const DireccionesContent = () => {
     XLSX.writeFile(workbook, "direcciones.xlsx")
   }
 
+  // Exportar a PDF
   const exportToPDF = () => {
     const doc = new jsPDF()
     doc.text("Direcciones Registradas", 14, 15)
@@ -138,79 +130,68 @@ const DireccionesContent = () => {
   }
 
   return (
-    <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-      </div>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      {/* Header con título y acciones */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Direcciones Registradas
+        </h2>
+        <div className="flex items-center space-x-3">
+          {/* Importar desde API */}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="whitespace-nowrap">
+                <Icon name="monitor" size={16} className="mr-2" />
+                <span className="hidden sm:inline">Importar desde API</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Importar Dirección</DialogTitle>
+                <DialogDescription>
+                  Ingrese la dirección blockchain que desea importar desde la API externa.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <Input
+                  placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="success" onClick={handleImportar}>
+                  Importar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-      {/* Tabla */}
-      <div className="bg-white mx-6 mt-6 rounded-lg shadow-sm p-6">
-        {/* Título y botones alineados */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Direcciones Registradas
-          </h2>
-
-          <div className="flex items-center space-x-3">
-            {/* Importar desde API */}
-<Dialog open={open} onOpenChange={setOpen}>
-  <DialogTrigger asChild>
-    <Button variant="outline">
-      <Icon name="monitor" size={16} className="mr-2" />
-      {/* Texto visible solo en pantallas sm+ */}
-      <span className="hidden sm:inline">Importar desde API</span>
-    </Button>
-  </DialogTrigger>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Importar Dirección</DialogTitle>
-      <DialogDescription>
-        Ingrese la dirección blockchain que desea importar desde la API externa.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="grid gap-4 py-4">
-      <Input
-        placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-      />
-    </div>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setOpen(false)}>
-        Cancelar
-      </Button>
-      <Button variant="success" onClick={handleImportar}>
-        Importar
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
-{/* Exportar datos */}
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="outline">
-      <Icon name="reports" size={16} className="mr-2" />
-      <span className="hidden sm:inline">Exportar Datos</span>
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem onClick={exportToExcel}>
-      Exportar a Excel
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={exportToPDF}>
-      Exportar a PDF
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
-
-          </div>
+          {/* Exportar datos */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="whitespace-nowrap">
+                <Icon name="reports" size={16} className="mr-2" />
+                <span className="hidden sm:inline">Exportar Datos</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToExcel}>
+                Exportar a Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF}>
+                Exportar a PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-
-        {/* DataTable */}
-        <DataTable columns={getColumnsDirecciones()} data={direcciones} />
       </div>
+
+      {/* DataTable */}
+      <DataTable columns={getColumnsDirecciones()} data={direcciones} />
     </div>
   )
 }

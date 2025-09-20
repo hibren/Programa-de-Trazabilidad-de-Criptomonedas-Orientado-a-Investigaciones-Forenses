@@ -6,7 +6,8 @@ import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 import Badge from "../atoms/Badge"
 import TopBar from "@/components/organisms/TopBar"
-import TabNavigation from "../molecules/TabNavigation"
+import { TabNavigation, TabsList, TabsTrigger } from "../molecules/TabNavigation"
+
 import SearchBar from "@/components/molecules/SearchBar"
 import StatCard from "../molecules/StatCard"
 
