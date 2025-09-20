@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
-import TopBar from "@/components/organisms/TopBar"
 import TabNavigation from "../molecules/TabNavigation"
 import SearchBar from "@/components/molecules/SearchBar"
 import { DataTable } from "@/components/DataTable/DataTable"
@@ -29,7 +28,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 
-// 👇 Toast y iconos
+// Toast e iconos
 import { useToast } from "@/components/ui/use-toast"
 import { CheckCircle, XCircle } from "lucide-react"
 
@@ -140,12 +139,6 @@ const DireccionesContent = () => {
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <TopBar
-        title="Gestión de Direcciones"
-        subtitle="Administra y monitorea direcciones blockchain"
-      />
-
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
