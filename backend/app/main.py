@@ -8,7 +8,7 @@ app = FastAPI(title="Trazabilidad de Criptomonedas", version="1.0.0")
 # CORS configuration - ADD THIS BEFORE ANY ROUTES
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 🔥 abierto en dev
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

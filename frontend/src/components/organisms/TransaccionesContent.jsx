@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 import Badge from "../atoms/Badge"
@@ -9,9 +10,13 @@ import TabNavigation from "../molecules/TabNavigation"
 import SearchBar from "@/components/molecules/SearchBar"
 import StatCard from "../molecules/StatCard"
 
+const API_URL = "http://localhost:8000" // 👈 ajusta según tu backend
+
 const TransaccionesContent = () => {
   const [activeTab, setActiveTab] = useState("recientes")
   const [searchQuery, setSearchQuery] = useState("")
+  const [transacciones, setTransacciones] = useState([])
+  const router = useRouter()
 
   const tabs = [
     { id: "recientes", label: "Recientes" },
@@ -23,72 +28,91 @@ const TransaccionesContent = () => {
   const stats = [
     {
       title: "Total Transacciones",
-      value: "89,432",
+      value: transacciones.length.toString(),
       subtitle: "Procesadas por el sistema",
       icon: "transactions",
       trend: { positive: true, value: "+5.2%" },
     },
     {
       title: "Pendientes",
-      value: "23",
+      value: transacciones.filter((t) => t.estado === "pendiente").length.toString(),
       subtitle: "Esperando confirmación",
       icon: "pending",
       trend: { positive: false, value: "+3" },
     },
     {
       title: "Alto Riesgo",
-      value: "156",
+      value: transacciones.filter((t) => t.patrones_sospechosos?.length > 0).length.toString(),
       subtitle: "Requieren atención",
       icon: "risk",
       trend: { positive: false, value: "+12" },
     },
     {
       title: "BTC Volumen",
-      value: "1,247.8",
+      value: transacciones
+        .reduce((acc, t) => acc + (t.monto_total || 0), 0)
+        .toFixed(4),
       subtitle: "Volumen total procesado",
       icon: "bitcoin",
       trend: { positive: true, value: "+8.9%" },
     },
   ]
 
-  const transacciones = [
-    {
-      hash: "000000000001f9d66f85e608...",
-      tipo: "Alto",
-      confirmaciones: 6,
-      desde: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-      hacia: "3j3HqWiZT2DeGVeeXyRmRHqWqY",
-      monto: "12.50000000 BTC",
-      fee: "0.00001000 BTC",
-      fecha: "2024-01-16 14:39:25"
-    },
-    {
-      hash: "141B41fc59640f3b9d6387...",
-      tipo: "Bajo",
-      confirmaciones: 12,
-      desde: "1BvBMSEVstWetqTFn5Au4m4GFg7xJaNVN2",
-      hacia: "bc1qxy0vrxgrzqcb42by41243r3k",
-      monto: "0.50000000 BTC",
-      fee: "0.00000500 BTC",
-      fecha: "2024-01-15 13:18:16"
+  // 🔗 cargar transacciones
+  const loadTransacciones = async () => {
+    try {
+      const res = await fetch(`${API_URL}/transacciones`)
+      if (!res.ok) throw new Error("Error cargando transacciones")
+      const data = await res.json()
+      setTransacciones(data)
+    } catch (err) {
+      console.error(err)
     }
-  ]
+  }
+
+  // 🔗 buscar por dirección o hash
+  const onSearch = async (query) => {
+    setSearchQuery(query)
+    if (!query) return loadTransacciones()
+
+    try {
+      // 1) buscar por dirección
+      let res = await fetch(`${API_URL}/direcciones/${query}/transacciones`)
+      if (res.ok) {
+        const data = await res.json()
+        return setTransacciones(data)
+      }
+
+      // 2) si no es dirección, buscar por hash de transacción
+      res = await fetch(`${API_URL}/transacciones/${query}`)
+      if (res.ok) {
+        const data = await res.json()
+        return setTransacciones([data])
+      }
+    } catch (err) {
+      console.error("Error en búsqueda:", err)
+    }
+  }
+
+  useEffect(() => {
+    loadTransacciones()
+  }, [])
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* TopBar personalizado para Transacciones */}
-      <TopBar 
+      {/* TopBar */}
+      <TopBar
         title="Gestión de Transacciones"
         subtitle="Gestión y análisis de transacciones blockchain"
       />
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="p-6 pb-0">
         <div className="mb-6">
           <SearchBar
             placeholder="Buscar dirección, hash de transacción o número de bloque..."
             className="w-full max-w-md"
-            onSearch={(query) => setSearchQuery(query)}
+            onSearch={onSearch}
           />
         </div>
       </div>
@@ -98,7 +122,7 @@ const TransaccionesContent = () => {
         <TabNavigation tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="p-6 pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
@@ -107,47 +131,82 @@ const TransaccionesContent = () => {
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Lista de transacciones */}
       <div className="bg-white mx-6 mt-2 rounded-lg shadow-sm">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Transacciones Recientes</h2>
-          <p className="text-sm text-gray-600">Últimas transacciones procesadas por el sistema.</p>
+          <p className="text-sm text-gray-600">
+            Últimas transacciones procesadas por el sistema.
+          </p>
         </div>
 
-        {/* Transactions List */}
         <div className="divide-y divide-gray-200">
           {transacciones.map((tx, index) => (
             <div key={index} className="px-6 py-4">
               <div className="flex items-start justify-between">
+                {/* Izquierda */}
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <code className="text-sm font-mono text-gray-900">{tx.hash}</code>
-                    <Badge variant={tx.tipo === "Alto" ? "danger" : "success"}>
-                      {tx.tipo}
+                    <Badge
+                      variant={
+                        tx.patrones_sospechosos?.length > 0
+                          ? "danger"
+                          : "success"
+                      }
+                    >
+                      {tx.patrones_sospechosos?.length > 0 ? "Alto" : "Bajo"}
                     </Badge>
-                    <span className="text-xs text-gray-500">{tx.confirmaciones} confirmaciones</span>
+                    <span className="text-xs text-gray-500">
+                      {tx.confirmations} confirmaciones
+                    </span>
                   </div>
-                  
+
                   <div className="text-sm text-gray-600 space-y-1">
                     <div>
-                      <span className="font-medium">De:</span> 
-                      <code className="ml-2 text-xs">{tx.desde}</code>
+                      <span className="font-medium">De:</span>
+                      {tx.inputs?.map((d, i) => (
+                        <code
+                          key={i}
+                          className="ml-2 text-xs text-blue-600 cursor-pointer"
+                          onClick={() => router.push(`/direcciones/${d}`)}
+                        >
+                          {d}
+                        </code>
+                      ))}
                     </div>
                     <div>
-                      <span className="font-medium">A:</span> 
-                      <code className="ml-2 text-xs">{tx.hacia}</code>
+                      <span className="font-medium">A:</span>
+                      {tx.outputs?.map((d, i) => (
+                        <code
+                          key={i}
+                          className="ml-2 text-xs text-green-600 cursor-pointer"
+                          onClick={() => router.push(`/direcciones/${d}`)}
+                        >
+                          {d}
+                        </code>
+                      ))}
                     </div>
                   </div>
                 </div>
 
+                {/* Derecha */}
                 <div className="text-right">
-                  <div className="text-lg font-semibold text-gray-900">{tx.monto}</div>
-                  <div className="text-sm text-gray-500">Fee: {tx.fee}</div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {tx.monto_total} BTC
+                  </div>
+                  <div className="text-sm text-gray-500">Fee: {tx.fees} BTC</div>
                   <div className="text-xs text-gray-400">{tx.fecha}</div>
                 </div>
               </div>
             </div>
           ))}
+
+          {transacciones.length === 0 && (
+            <div className="px-6 py-4 text-sm text-gray-500">
+              No se encontraron transacciones.
+            </div>
+          )}
         </div>
       </div>
     </div>
