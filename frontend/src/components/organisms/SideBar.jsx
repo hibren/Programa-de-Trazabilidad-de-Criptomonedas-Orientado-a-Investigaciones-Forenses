@@ -18,7 +18,7 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
     { id: "risk", icon: "risk", label: "Perfiles de Riesgo", href: "/riesgo" },
     { id: "monitor", icon: "monitor", label: "Monitoreo y Alertas", href: "/monitoreo" },
     { id: "reports", icon: "reports", label: "Reportes", href: "/reportes" },
-    { id: "admin", icon: "admin", label: "Administración", href: "/admin" },
+    { id: "admin", icon: "admin", label: "Administración", href: "/administracion" },
   ]
 
   const handleItemClick = (id) => {
