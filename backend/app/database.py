@@ -21,6 +21,7 @@ direccion_collection = db["direcciones"]
 bloque_collection = db["bloques"]
 transaccion_collection = db["transacciones"]
 reporte_collection = db["reportes"]
+cluster_collection = db["cluster"]
 
 # -----------------------------
 # Clase para usar ObjectId en Pydantic
