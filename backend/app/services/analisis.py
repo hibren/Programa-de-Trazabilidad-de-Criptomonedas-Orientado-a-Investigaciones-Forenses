@@ -7,18 +7,9 @@ from app.schemas.reporte import Reporte
 from datetime import datetime
 from typing import Optional, List
 
-async def get_all_analisis(address: str, limit: int = 50) -> List[AnalisisModel]:
-    cursor = (
-        analisis_collection
-        .find({"cluster.direccion": {"$in": [address]}})
-        .sort("createdAt", -1)
-        .limit(limit)
-    )
-    docs = await cursor.to_list(length=limit)
-    for d in docs:
-        if "_id" in d:
-            d["_id"] = str(d["_id"])
-    return [AnalisisModel(**d) for d in docs]
+async def get_all_analisis():
+    docs = await analisis_collection.find().to_list(100)
+    return [AnalisisModel(**doc).dict(by_alias=True) for doc in docs]
 
 
 async def generar_analisis_por_direccion(address: str) -> Optional[AnalisisModel]:
