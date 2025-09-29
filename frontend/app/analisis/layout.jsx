@@ -5,7 +5,7 @@ import Sidebar from "@/components/organisms/SideBar"
 import TopBar from "@/components/organisms/TopBar"
 import { TabNavigation, TabsList, TabsTrigger } from "@/components/molecules/TabNavigation"
 
-export default function GrafosLayout({ children }) {
+export default function AnalisisLayout({ children }) {
   const [activeTab, setActiveTab] = useState("trazabilidad")
 
   const tabs = [
