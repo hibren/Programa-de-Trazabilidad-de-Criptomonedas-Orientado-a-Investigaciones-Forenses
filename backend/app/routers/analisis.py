@@ -5,10 +5,10 @@ from app.services.analisis import generar_analisis_por_direccion, get_all_analis
 
 router = APIRouter(prefix="/analisis", tags=["analisis"])
 
-@router.get("/", response_model=List[AnalisisOut])
+@router.get("/analisis/")
 async def list_analisis():
     analisis = await get_all_analisis()
-    return [a.dict(by_alias=True) for a in analisis]
+    return analisis
 
 @router.post("/generar/{address}", response_model=AnalisisOut)
 async def generar(address: str):
