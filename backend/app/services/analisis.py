@@ -1,27 +1,42 @@
-from app.database import analisis_collection, cluster_collection, reporte_collection
+# services/analisis.py
+from app.database import analisis_collection
+from app.services.cluster import get_cluster_by_address, fetch_and_save_cluster
+from app.services.reporte import fetch_reportes_by_address
 from app.models.analisis import AnalisisModel
-from app.models.cluster import ClusterModel
-from app.models.reporte import ReporteModel
+from app.schemas.reporte import Reporte
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional, List
 
-async def generar_analisis(cluster_id: str) -> Optional[AnalisisModel]:
-    # Traer cluster
-    cluster_doc = await cluster_collection.find_one({"_id": cluster_id})
-    if not cluster_doc:
+async def get_all_analisis(address: str, limit: int = 50) -> List[AnalisisModel]:
+    cursor = (
+        analisis_collection
+        .find({"cluster.direccion": {"$in": [address]}})
+        .sort("createdAt", -1)
+        .limit(limit)
+    )
+    docs = await cursor.to_list(length=limit)
+    for d in docs:
+        if "_id" in d:
+            d["_id"] = str(d["_id"])
+    return [AnalisisModel(**d) for d in docs]
+
+
+async def generar_analisis_por_direccion(address: str) -> Optional[AnalisisModel]:
+    # 1. Buscar cluster
+    cluster = await get_cluster_by_address(address)
+    if not cluster:
+        cluster = await fetch_and_save_cluster(address)
+    if not cluster:
         return None
-    cluster_doc["_id"] = str(cluster_doc["_id"])
-    cluster = ClusterModel(**cluster_doc)
 
-    # Traer reportes de todas las direcciones
-    reportes_docs = await reporte_collection.find({
-        "id_direccion": {"$in": cluster.direccion}
-    }).to_list(200)
+    # 2. Buscar reportes
+    reportes = []
+    for dir_ in cluster.direccion:
+        r = await fetch_reportes_by_address(dir_)
+        reportes.extend(r)
 
-    reportes = [ReporteModel(**{**r, "_id": str(r["_id"])}) for r in reportes_docs]
-
-    # Calcular riesgo
-    categorias = [r.scamCategory for r in reportes]
+    # 3. Calcular riesgo
+    categorias = [rep.scamCategory for rep in reportes]
     if "RANSOMWARE" in categorias or "FAKE_RETURNS" in categorias:
         riesgo = "Alto"
     elif categorias:
@@ -31,9 +46,9 @@ async def generar_analisis(cluster_id: str) -> Optional[AnalisisModel]:
 
     analisis_doc = {
         "cluster": cluster.dict(by_alias=True),
-        "reportes": [r.dict(by_alias=True) for r in reportes],
+        "reportes": [Reporte(**r.dict(by_alias=True)).dict(by_alias=True) for r in reportes],
         "riesgo": riesgo,
-        "descripcion": f"Análisis generado con {len(reportes)} reportes",
+        "descripcion": f"Análisis generado para {address} con {len(reportes)} reportes",
         "createdAt": datetime.utcnow()
     }
 
@@ -41,9 +56,3 @@ async def generar_analisis(cluster_id: str) -> Optional[AnalisisModel]:
     analisis_doc["_id"] = str(result.inserted_id)
 
     return AnalisisModel(**analisis_doc)
-
-async def get_all_analisis(limit: int = 50) -> List[AnalisisModel]:
-    docs = await analisis_collection.find().to_list(limit)
-    for d in docs:
-        d["_id"] = str(d["_id"])
-    return [AnalisisModel(**d) for d in docs]

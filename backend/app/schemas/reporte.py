@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
@@ -14,7 +14,8 @@ class ReporteCreate(ReporteBase):
     pass
 
 class Reporte(ReporteBase):
-    id: str
+    id: str = Field(alias="_id")  # 👈 acá mapeás de Mongo a id
 
     class Config:
         from_attributes = True
+        populate_by_name = True   # permite usar tanto `id` como `_id`
