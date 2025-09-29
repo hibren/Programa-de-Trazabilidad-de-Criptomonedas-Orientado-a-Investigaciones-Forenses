@@ -1,39 +1,35 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { DataTable } from "@/components/DataTable/DataTable"
+import { getColumnsAnalisis } from "@/components/DataTable/columns/getColumnsAnalisis"
+import { useToast } from "@/components/ui/use-toast"
+import { XCircle } from "lucide-react"
+import Button from "../atoms/Button"
+import Icon from "../atoms/Icon"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import * as XLSX from "xlsx"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 import StatCard from "../molecules/StatCard"
-import Badge from "../atoms/Badge"
+
+const API_URL = "http://localhost:8000" // 👈 ajusta si tu backend corre en otro host/puerto
 
 const AnalisisContent = () => {
   const [analisis, setAnalisis] = useState([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-  // Llamada al backend
-  useEffect(() => {
-    const fetchAnalisis = async () => {
-      try {
-        const API_URL = "http://localhost:8000"
-
-        const res = await fetch(`${API_URL}/analisis/`)
-
-        if (!res.ok) throw new Error("Error al cargar análisis")
-        const data = await res.json()
-        setAnalisis(data)
-      } catch (error) {
-        console.error("Error cargando análisis:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAnalisis()
-  }, [])
-
-  // Stats básicos (placeholder por ahora)
+  // Stats de ejemplo
   const stats = [
     {
       title: "Trazas Activas",
-      value: analisis.length,
+      value: analisis.length.toString(),
       subtitle: "En proceso de análisis",
       icon: "activity",
       trend: { positive: true, value: `+${analisis.length}` },
@@ -61,9 +57,77 @@ const AnalisisContent = () => {
     },
   ]
 
+  // 🔗 cargar análisis
+  const loadAnalisis = async () => {
+    try {
+      const res = await fetch(`${API_URL}/analisis/`)
+      if (!res.ok) throw new Error("Error cargando análisis")
+      const data = await res.json()
+      setAnalisis(data)
+    } catch (err) {
+      console.error(err)
+      toast({
+        variant: "destructive",
+        title: (
+          <div className="flex items-center gap-2 text-red-600">
+            <XCircle className="h-5 w-5" />
+            <span>Error</span>
+          </div>
+        ),
+        description: "No se pudieron cargar los análisis.",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAnalisis()
+  }, [])
+
+  // Exportar a Excel
+  const exportToExcel = () => {
+    const data = analisis.map((a) => ({
+      ID: a._id,
+      Riesgo: a.riesgo,
+      "BTC Total": a.btc_total,
+      Saltos: a.saltos,
+      Origen: a.origen,
+      Destino: a.destino,
+      Creado: a.createdAt ? new Date(a.createdAt).toLocaleString() : "-",
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Análisis")
+    XLSX.writeFile(workbook, "analisis.xlsx")
+  }
+
+  // Exportar a PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF()
+    doc.text("Resultados de Análisis", 14, 15)
+
+    autoTable(doc, {
+      startY: 20,
+      head: [["ID", "Riesgo", "BTC", "Saltos", "Origen", "Destino", "Creado"]],
+      body: analisis.map((a) => [
+        a._id,
+        a.riesgo,
+        a.btc_total,
+        a.saltos,
+        a.origen,
+        a.destino,
+        a.createdAt ? new Date(a.createdAt).toLocaleString() : "-",
+      ]),
+    })
+
+    doc.save("analisis.pdf")
+  }
+
   return (
     <div className="flex-1 bg-gray-50 min-h-screen">
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="p-6 pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
@@ -72,73 +136,37 @@ const AnalisisContent = () => {
         </div>
       </div>
 
-      {/* Resultados */}
+      {/* Tabla de análisis */}
       <div className="bg-white mx-6 mt-2 rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Resultados de Análisis
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Resultados de Análisis
+          </h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="whitespace-nowrap">
+                <Icon name="reports" size={16} className="mr-2" />
+                <span className="hidden sm:inline">Exportar Datos</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToExcel}>
+                Exportar a Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF}>
+                Exportar a PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-        {loading && <p className="text-gray-500">Cargando...</p>}
+        <DataTable
+          columns={getColumnsAnalisis()}
+          data={analisis}
+          filterColumn="_id"
+        />
 
-        {!loading && analisis.length === 0 && (
-          <p className="text-gray-500">No hay análisis disponibles.</p>
-        )}
-
-        {analisis.map((result, i) => (
-          <div key={i} className="border border-gray-200 rounded-lg p-4 mb-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <span className="text-sm font-mono text-gray-900">
-                  {result._id}
-                </span>
-                <Badge
-                  variant={result.riesgo === "Alto" ? "danger" : "warning"}
-                >
-                  {result.riesgo || "Sin riesgo"}
-                </Badge>
-              </div>
-              <div className="text-right">
-                <div className="text-lg font-semibold text-gray-900">
-                  {result.btc_total ? `${result.btc_total} BTC` : "-"}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {result.saltos ? `${result.saltos} saltos` : ""}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 text-sm text-gray-600">
-              {result.origen && (
-                <div>
-                  <span className="font-medium">Origen:</span>
-                  <code className="ml-2 text-xs bg-gray-100 px-1 py-0.5 rounded">
-                    {result.origen}
-                  </code>
-                </div>
-              )}
-              {result.destino && (
-                <div>
-                  <span className="font-medium">Destino:</span>
-                  <code className="ml-2 text-xs bg-gray-100 px-1 py-0.5 rounded">
-                    {result.destino}
-                  </code>
-                </div>
-              )}
-              {result.patrones?.length > 0 && (
-                <div>
-                  <span className="font-medium">Patrones identificados:</span>
-                  <span className="ml-2">{result.patrones.join(", ")}</span>
-                </div>
-              )}
-              <div className="text-xs text-gray-400">
-                Creado:{" "}
-                {result.createdAt
-                  ? new Date(result.createdAt).toLocaleString()
-                  : "-"}
-              </div>
-            </div>
-          </div>
-        ))}
+        {loading && <p className="text-gray-500 mt-4">Cargando...</p>}
       </div>
     </div>
   )
