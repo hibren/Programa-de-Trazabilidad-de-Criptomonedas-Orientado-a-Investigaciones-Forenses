@@ -5,7 +5,7 @@ from app.services.analisis import generar_analisis_por_direccion, get_all_analis
 
 router = APIRouter(prefix="/analisis", tags=["analisis"])
 
-@router.get("/analisis/")
+@router.get("/")
 async def list_analisis():
     analisis = await get_all_analisis()
     return analisis

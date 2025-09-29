@@ -14,7 +14,7 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
     { id: "dashboard", icon: "dashboard", label: "Dashboard", href: "/dashboard" },
     { id: "direcciones", icon: "directions", label: "Direcciones", href: "/direcciones" },
     { id: "transacciones", icon: "transactions", label: "Transacciones", href: "/transacciones" },
-    { id: "grafos", icon: "graphs", label: "Grafos", href: "/grafos" },
+    { id: "analisis", icon: "graphs", label: "Análisis", href: "/analisis" },
     { id: "risk", icon: "risk", label: "Perfiles de Riesgo", href: "/perfiles" },
     { id: "monitor", icon: "monitor", label: "Monitoreo y Alertas", href: "/monitoreo" },
     { id: "reports", icon: "reports", label: "Reportes", href: "/reportes" },

@@ -12,7 +12,10 @@ const AnalisisContent = () => {
   useEffect(() => {
     const fetchAnalisis = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analisis`)
+        const API_URL = "http://localhost:8000"
+
+        const res = await fetch(`${API_URL}/analisis/`)
+
         if (!res.ok) throw new Error("Error al cargar análisis")
         const data = await res.json()
         setAnalisis(data)

@@ -56,7 +56,8 @@ export default function LoginPage() {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-green-900/70" />
+        {/* Overlay más suave */}
+        <div className="absolute inset-0 bg-green-900/50" />
       </div>
 
       {/* Right Side - Formulario */}
@@ -73,13 +74,10 @@ export default function LoginPage() {
           </p>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+            <div className="rounded-md bg-red-100 p-3 text-sm text-red-700 font-medium">
               {error}
             </div>
           )}
-
-
-
 
           {success && (
             <Alert>
@@ -125,7 +123,6 @@ export default function LoginPage() {
                   <EyeIcon className="h-5 w-5 shrink-0" />
                 )}
               </button>
-
             </div>
             <p className="text-sm text-muted-foreground text-right cursor-pointer hover:underline">
               ¿Has olvidado tu contraseña?
@@ -147,7 +144,6 @@ export default function LoginPage() {
             )}
           </Button>
 
-
           <div className="text-center text-sm text-muted-foreground mt-6">
             ¿No tienes una cuenta?{" "}
             <a href="#" className="text-green-600 hover:underline">
@@ -159,6 +155,7 @@ export default function LoginPage() {
     </div>
   )
 }
+
 
 
 
