@@ -1,17 +1,17 @@
-// Sidebar.jsx
 "use client"
 
 import { useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import NavItem from "../molecules/NavItem"
-import { Menu, X } from "lucide-react"
+import { Menu, X, LogOut } from "lucide-react"
 
-const Sidebar = ({ activeItem = "dashboard" }) => {
+const Sidebar = ({ activeItem }) => {
   const [currentActive, setCurrentActive] = useState(activeItem)
   const [isOpen, setIsOpen] = useState(false)
 
+  // 🔹 Ya no incluimos "dashboard" en el menú
   const navItems = [
-    { id: "dashboard", icon: "dashboard", label: "Dashboard", href: "/dashboard" },
     { id: "direcciones", icon: "directions", label: "Direcciones", href: "/direcciones" },
     { id: "transacciones", icon: "transactions", label: "Transacciones", href: "/transacciones" },
     { id: "analisis", icon: "graphs", label: "Análisis", href: "/analisis" },
@@ -46,25 +46,32 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
         />
       )}
 
-      {/* SIDEBAR fijo + drawer */}
+      {/* SIDEBAR */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-[55] w-64 bg-green-800 p-4 h-screen overflow-y-auto
+          fixed inset-y-0 left-0 z-[55] w-64 bg-green-800 p-4 h-screen flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0
         `}
       >
+        {/* Logo → Link al Dashboard */}
         <div className="mb-8">
-          <div className="flex items-center space-x-2 text-white">
+          <Link href="/dashboard" className="flex items-center space-x-2 text-white hover:opacity-80">
             <div className="relative w-10 h-10">
-              <Image src="/icono.png" alt="BlockAnalyzer" fill className="object-cover rounded-full" />
+              <Image
+                src="/icono.png"
+                alt="BlockAnalyzer"
+                fill
+                className="object-cover rounded-full"
+              />
             </div>
             <span className="font-bold text-lg">BlockAnalyzer</span>
-          </div>
+          </Link>
         </div>
 
-        <nav className="space-y-2">
+        {/* Navegación */}
+        <nav className="space-y-2 flex-1">
           {navItems.map((item) => (
             <NavItem
               key={item.id}
@@ -76,9 +83,22 @@ const Sidebar = ({ activeItem = "dashboard" }) => {
             />
           ))}
         </nav>
+
+        {/* Botón Cerrar Sesión siempre abajo */}
+        <div className="mt-auto border-t border-green-700 pt-4">
+          <button
+            onClick={() => console.log("Cerrar sesión")}
+            className="flex items-center gap-2 w-full text-white px-3 py-2 rounded hover:bg-green-700"
+          >
+            <LogOut size={18} />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
       </aside>
     </>
   )
 }
 
 export default Sidebar
+
+
