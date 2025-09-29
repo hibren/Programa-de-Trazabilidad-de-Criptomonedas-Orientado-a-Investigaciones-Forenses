@@ -1,80 +1,157 @@
-import Button from "@/components/atoms/Button"
-import Checkbox from "@/components/atoms/Checkbox"
-import Card from "@/components/molecules/Card"
-import CardContent from "@/components/molecules/CardContent"
-import FormField from "@/components/molecules/FormField"
-import PasswordField from "@/components/molecules/PasswordField"
+"use client"
+
+import { useState } from "react"
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    setSuccess(false)
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!res.ok) {
+        throw new Error("Error en login")
+      }
+
+      const data = await res.json()
+      localStorage.setItem("token", data.token)
+      setSuccess(true)
+    } catch (err) {
+      setError("Credenciales inválidas")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Green Background with Logo */}
+      {/* Left Side - Imagen de fondo */}
       <div className="flex-1 bg-green-900 relative">
-  <Image
-    src="/fotologin.png"
-    alt="Block Analyzer Background"
-    fill
-    className="object-cover"
-    priority
-  />
-  <div className="absolute inset-0 bg-green-900/70" /> {/* overlay */}
-</div>
+        <Image
+          src="/fotologin.png"
+          alt="Block Analyzer Background"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-green-900/70" />
+      </div>
 
-
-      {/* Right Side - Login Form */}
+      {/* Right Side - Formulario */}
       <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-green-50 to-gray-100">
-        <div className="w-full max-w-md">
-          <Card shadow="2xl" className="rounded-2xl">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-md space-y-6 bg-card p-8 rounded-xl shadow-xl"
+        >
+          <h1 className="text-2xl font-bold text-center text-foreground">
+            Iniciar sesión
+          </h1>
+          <p className="text-center text-muted-foreground">
+            Ingresa tus credenciales para acceder a BlockAnalyzer
+          </p>
 
-            <CardContent>
-              <div className="space-y-1 mb-6">
-                <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
-                <p className="text-center text-gray-600">
-                  Ingresa tus credenciales para acceder a BlockAnalyzer
-                </p>
-              </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-              <form className="space-y-4">
-                <FormField
-                  id="email"
-                  label="Email"
-                  type="email"
-                  placeholder="tu@email.com"
-                  required
-                />
-                <PasswordField
-                  id="password"
-                  label="Contraseña"
-                  placeholder="••••••••"
-                  required
-                />
+          {success && (
+            <Alert>
+              <AlertDescription>
+                ✅ Inicio de sesión exitoso
+              </AlertDescription>
+            </Alert>
+          )}
 
-                <div className="flex items-center justify-between">
-                  <Checkbox id="remember" label="Recordarme" variant="success" />
-                  <a href="#" className="text-sm text-green-600 hover:underline">
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Correo electrónico</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="example@email.com"
+              required
+              className="bg-background text-foreground"
+            />
+          </div>
 
-                <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500"
+          <div className="space-y-2">
+            <Label htmlFor="password">Contraseña</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="********"
+                required
+                className="bg-background text-foreground pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-muted-foreground hover:text-foreground"
               >
-                Iniciar Sesión
-              </Button>
+                {showPassword ? (
+                  <EyeOffIcon className="h-5 w-5 shrink-0" />
+                ) : (
+                  <EyeIcon className="h-5 w-5 shrink-0" />
+                )}
+              </button>
 
-              </form>
+            </div>
+            <p className="text-sm text-muted-foreground text-right cursor-pointer hover:underline">
+              ¿Has olvidado tu contraseña?
+            </p>
+          </div>
 
-              <div className="text-center text-sm text-gray-600 mt-6">
-                ¿No tienes una cuenta?{" "}
-                <a href="#" className="text-green-600 hover:underline">
-                  Contacta al administrador
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Iniciando sesión...
+              </>
+            ) : (
+              "Iniciar sesión"
+            )}
+          </Button>
+
+
+          <div className="text-center text-sm text-muted-foreground mt-6">
+            ¿No tienes una cuenta?{" "}
+            <a href="#" className="text-green-600 hover:underline">
+              Contacta al administrador
+            </a>
+          </div>
+        </form>
       </div>
     </div>
   )
