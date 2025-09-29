@@ -73,10 +73,13 @@ export default function LoginPage() {
           </p>
 
           {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+              {error}
+            </div>
           )}
+
+
+
 
           {success && (
             <Alert>
