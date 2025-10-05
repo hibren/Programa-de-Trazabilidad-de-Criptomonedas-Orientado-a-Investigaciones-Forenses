@@ -1,7 +1,8 @@
 "use client"
 
-import { ArrowUpDown, Shield, AlertTriangle, XCircle } from "lucide-react"
+import { ArrowUpDown, Shield, AlertTriangle, XCircle, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
 
 export const getColumnsDirecciones = () => {
@@ -24,12 +25,9 @@ export const getColumnsDirecciones = () => {
       cell: ({ row }) => {
         const direccion = row.getValue("direccion")
         return (
-          <button
-            className="font-mono text-xs text-blue-600 hover:underline"
-            onClick={() => router.push(`/direcciones/${direccion}`)}
-          >
+          <span className="font-mono text-xs text-gray-800 break-all">
             {direccion}
-          </button>
+          </span>
         )
       },
     },
@@ -93,17 +91,29 @@ export const getColumnsDirecciones = () => {
     },
     {
       id: "actions",
-      header: "Acciones",
+      header: "", // 👈 sin texto de encabezado
       cell: ({ row }) => {
         const direccion = row.getValue("direccion")
         return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/direcciones/${direccion}`)}
-          >
-            Ver detalle
-          </Button>
+          <div className="flex justify-end">
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-green-100"
+                    onClick={() => router.push(`/direcciones/${direccion}`)}
+                  >
+                    <Eye className="h-4 w-4 text-green-700" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs text-gray-700">Ver detalle</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         )
       },
     },
