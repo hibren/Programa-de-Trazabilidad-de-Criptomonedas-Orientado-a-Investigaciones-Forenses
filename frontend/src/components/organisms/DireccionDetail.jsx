@@ -5,6 +5,7 @@ import { DataTable } from "@/components/DataTable/DataTable"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, List, Activity } from "lucide-react"
+import DireccionGraph from "@/components/organisms/DireccionGraph"
 
 const API_URL = "http://localhost:8000"
 
@@ -212,15 +213,14 @@ export default function DireccionDetail({ direccion }) {
         </TabsContent>
 
         {/* === TAB: ANÁLISIS === */}
+        
         <TabsContent value="analisis">
           <Card>
             <CardHeader>
               <CardTitle>Trazabilidad y Análisis de Red</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="w-full h-[500px] bg-white rounded shadow flex items-center justify-center">
-                <p className="text-gray-500">[Grafo interactivo aquí]</p>
-              </div>
+              <DireccionGraph direccion={direccion} />
             </CardContent>
           </Card>
         </TabsContent>
