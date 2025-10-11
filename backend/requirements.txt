@@ -4,3 +4,4 @@ requests
 pydantic
 motor        # driver async para MongoDB
 httpx
+
