@@ -1,5 +1,5 @@
-from typing import Annotated
-from pydantic import BaseModel, Field
+from typing import Annotated, Optional
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from app.database import PyObjectId
 
@@ -17,13 +17,15 @@ class DireccionCreateSchema(BaseModel):
     unconfirmed_n_tx: int = 0
     final_n_tx: int = 0
     has_more: bool = False
-    primer_tx: datetime | None = None
-    ultima_tx: datetime | None = None
+    primer_tx: Optional[datetime] = None
+    ultima_tx: Optional[datetime] = None
 
 class DireccionFetchRequest(BaseModel):
     direccion: str
 
 class DireccionResponseSchema(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)  # ✅ CLAVE: Permite campos extra
+    
     id: PyObjectIdField = Field(alias="_id")
     direccion: str
     balance: float
@@ -36,5 +38,11 @@ class DireccionResponseSchema(BaseModel):
     unconfirmed_n_tx: int
     final_n_tx: int
     has_more: bool
-    primer_tx: datetime | None
-    ultima_tx: datetime | None
+    primer_tx: Optional[datetime] = None
+    ultima_tx: Optional[datetime] = None
+    ultimo_update_riesgo: Optional[datetime] = None
+    total: Optional[int] = None
+    cantidad_reportes: Optional[int] = None
+    actividad: Optional[str] = None
+    categorias: Optional[list[str]] = None
+    ponderaciones: Optional[dict] = None

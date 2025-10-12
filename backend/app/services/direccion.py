@@ -9,8 +9,15 @@ BASE_URL = "https://api.blockcypher.com/v1/btc/main"
 
 # Obtener todos
 async def get_all_direcciones():
-    docs = await direccion_collection.find().to_list(100)
-    return [DireccionModel(**doc).dict(by_alias=True) for doc in docs]
+    docs = await direccion_collection.find().to_list(None)
+    result = []
+    for doc in docs:
+        # convierte el ObjectId a string
+        doc["_id"] = str(doc["_id"])
+        # usa .dict(by_alias=True) para mantener los alias
+        result.append(DireccionModel(**doc).dict(by_alias=True))
+    return result
+
 
 async def create_direccion(data: dict) -> dict:
     result = await direccion_collection.insert_one(data)

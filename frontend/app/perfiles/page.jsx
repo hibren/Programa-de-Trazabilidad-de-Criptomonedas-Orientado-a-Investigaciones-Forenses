@@ -1,5 +1,5 @@
-import PerfilesContent from "@/components/organisms/PerfilesContent"
+import PerfilRiesgoContent from "@/components/organisms/PerfilRiesgoContent"
 
 export default function PerfilesPage() {
-  return <PerfilesContent activeTab="direcciones" />
+  return <PerfilRiesgoContent />
 }

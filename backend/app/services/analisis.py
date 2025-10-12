@@ -183,87 +183,146 @@ def calcular_perfil_riesgo(num_reportes, categorias, ultima_tx: Optional[datetim
 
 async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
     """
-    Analiza una dirección específica o todas las direcciones activas.
+    Analiza una dirección específica o todas las direcciones.
     Combina reportes, actividad reciente y categorías delictivas.
+    Actualiza la colección `direccion_collection` con el estado actual del riesgo.
     """
-    query = {"direccion": direccion} if direccion else {"ultima_tx": {"$ne": None}}
+    print("\n" + "="*60)
+    print("🚀 INICIANDO ANÁLISIS DE RIESGO")
+    print("="*60)
+    
+    # QUERY
+    query = {"direccion": direccion} if direccion else {}
+    print(f"📍 Query: {query}")
+    
     direcciones = await direccion_collection.find(query).to_list(None)
     print(f"🔍 Analizando {len(direcciones)} dirección(es)...")
     resultados = []
 
     for dir_doc in direcciones:
         addr = dir_doc["direccion"]
-        print(f"\n==============================")
-        print(f"📌 Analizando dirección: {addr}")
-        print(f"🔍 DEBUG - dir_doc completo: {dir_doc}")
+        doc_id = dir_doc["_id"]
+        
+        print(f"\n{'='*60}")
+        print(f"📌 DIRECCIÓN: {addr}")
+        print(f"🆔 ObjectId: {doc_id} (tipo: {type(doc_id)})")
+        print(f"{'='*60}")
 
         # --- Reportes asociados ---
         reportes = await reporte_collection.find({"id_direccion": addr}).to_list(None)
         print(f"📄 Reportes encontrados: {len(reportes)}")
         if reportes:
-            print(f"🧾 Categorías encontradas: {[r.get('scamCategory', 'OTHER') for r in reportes]}")
+            print(f"🧾 Categorías: {[r.get('scamCategory', 'OTHER') for r in reportes]}")
 
         categorias = [r.get("scamCategory", "OTHER") for r in reportes]
 
         # --- Actividad: DB o API ---
         ultima_tx = dir_doc.get("ultima_tx")
-        print(f"🔍 DEBUG - ultima_tx del documento: {ultima_tx}, tipo: {type(ultima_tx)}")
+        print(f"🕐 ultima_tx en DB: {ultima_tx} (tipo: {type(ultima_tx)})")
 
-        # Si no hay transacción en DB, consulta BlockCypher
         if not ultima_tx:
             api_tx = await verificar_actividad_blockcypher(addr)
             if api_tx:
                 ultima_tx = api_tx
-                print(f"🔗 Última transacción detectada desde BlockCypher: {ultima_tx}")
+                print(f"✅ TX desde BlockCypher: {ultima_tx}")
             else:
-                print(f"🔸 Sin actividad detectada en API ni en base de datos")
+                print(f"❌ Sin TX en BlockCypher")
         else:
-            # Si hay valor en DB, opcionalmente valida/actualiza con API
             api_tx = await verificar_actividad_blockcypher(addr)
             if api_tx:
                 ultima_tx = api_tx
-                print(f"🔗 Última transacción actualizada desde BlockCypher: {ultima_tx}")
-            else:
-                print(f"🔸 API sin respuesta. Usando valor local: {ultima_tx}")
+                print(f"🔄 TX actualizada desde BlockCypher: {ultima_tx}")
 
         # --- Cálculo de riesgo ---
         resultado = calcular_perfil_riesgo(len(reportes), categorias, ultima_tx)
 
-        # --- Actualización de dirección ---
-        # Convierte ultima_tx a ISO string si es datetime
+        # --- Conversión de fecha a string ISO ---
         ultima_tx_iso = None
         if ultima_tx:
             if isinstance(ultima_tx, datetime):
                 ultima_tx_iso = ultima_tx.isoformat()
             else:
                 ultima_tx_iso = str(ultima_tx)
+            print(f"📅 ultima_tx_iso: {ultima_tx_iso}")
 
-        await direccion_collection.update_one(
-            {"_id": ObjectId(dir_doc["_id"])},
-            {"$set": {
-                "perfil_riesgo": resultado["nivel"],
-                "ultimo_update_riesgo": datetime.now(timezone.utc).isoformat(),
-                "ultima_tx": ultima_tx_iso
-            }}
-        )
-        print(f"✅ Dirección actualizada con perfil_riesgo='{resultado['nivel']}'")
-
-        # --- Registro del análisis ---
-        analisis_doc = {
-            "direccion": addr,
-            "puntaje_total": resultado["total"],
-            "nivel_riesgo": resultado["nivel"],
-            "factores": {
-                "reportes": len(reportes),
-                "categorias": categorias,
-                "actividad": resultado["actividad"],
-                "ponderaciones": resultado["ponderaciones"]
-            },
-            "fecha_analisis": datetime.now(timezone.utc).isoformat()
+        # --- Preparar datos para actualización ---
+        update_data = {
+            "perfil_riesgo": resultado["nivel"],
+            "ultimo_update_riesgo": datetime.now(timezone.utc).isoformat(),
+            "total": resultado["total"],
+            "cantidad_reportes": len(reportes),
+            "actividad": resultado["actividad"],
+            "categorias": categorias,
+            "ponderaciones": resultado["ponderaciones"],
         }
-        await analisis_collection.insert_one(analisis_doc)
-        print(f"📝 Análisis guardado en colección 'analisis' con nivel '{resultado['nivel']}' y total {resultado['total']}")
+        
+        if ultima_tx_iso:
+            update_data["ultima_tx"] = ultima_tx_iso
 
+        print(f"\n💾 ACTUALIZACIÓN:")
+        print(f"   Query: {{'_id': {doc_id}}}")
+        print(f"   Datos a actualizar:")
+        for key, val in update_data.items():
+            print(f"      - {key}: {val}")
+        
+        try:
+            # --- Actualización en direccion_collection ---
+            update_result = await direccion_collection.update_one(
+                {"_id": doc_id},
+                {"$set": update_data}
+            )
+            
+            print(f"\n📊 RESULTADO DE UPDATE:")
+            print(f"   ✓ Matched: {update_result.matched_count}")
+            print(f"   ✓ Modified: {update_result.modified_count}")
+            print(f"   ✓ Acknowledged: {update_result.acknowledged}")
+            
+            if update_result.matched_count == 0:
+                print(f"   ❌ NO SE ENCONTRÓ EL DOCUMENTO CON _id: {doc_id}")
+                # Intenta buscar directamente para verificar que existe
+                verify = await direccion_collection.find_one({"_id": doc_id})
+                print(f"   🔍 Verificación - Documento existe: {verify is not None}")
+                if verify:
+                    print(f"      Documento encontrado: {verify}")
+            
+            if update_result.modified_count == 0 and update_result.matched_count > 0:
+                print(f"   ⚠️ DOCUMENTO ENCONTRADO PERO NO SE MODIFICÓ")
+                # Verifica los datos actuales
+                current = await direccion_collection.find_one({"_id": doc_id})
+                print(f"   📋 Estado actual:")
+                for key in ["perfil_riesgo", "total", "cantidad_reportes"]:
+                    print(f"      - {key}: {current.get(key)}")
+            
+            actualizado = update_result.modified_count > 0
+            
+        except Exception as e:
+            print(f"   ❌ ERROR EN UPDATE: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            actualizado = False
+            update_result = None
+
+        # --- Registro histórico en colección analisis ---
+        try:
+            analisis_doc = {
+                "direccion": addr,
+                "puntaje_total": resultado["total"],
+                "nivel_riesgo": resultado["nivel"],
+                "factores": {
+                    "reportes": len(reportes),
+                    "categorias": categorias,
+                    "actividad": resultado["actividad"],
+                    "ponderaciones": resultado["ponderaciones"]
+                },
+                "fecha_analisis": datetime.now(timezone.utc).isoformat()
+            }
+
+            insert_result = await analisis_collection.insert_one(analisis_doc)
+            print(f"📝 Análisis guardado con ID: {insert_result.inserted_id}")
+        except Exception as e:
+            print(f"❌ ERROR guardando análisis: {e}")
+
+        # --- Acumulación para la respuesta ---
         resultados.append({
             "direccion": addr,
             "nivel": resultado["nivel"],
@@ -272,8 +331,14 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
             "categorias": categorias,
             "actividad": resultado["actividad"],
             "ponderaciones": resultado["ponderaciones"],
-            "fecha_analisis": datetime.now(timezone.utc).isoformat()
+            "fecha_analisis": datetime.now(timezone.utc).isoformat(),
+            "actualizado": actualizado
         })
 
-    print(f"\n🏁 Análisis completado. Direcciones analizadas: {len(resultados)}")
+    print(f"\n{'='*60}")
+    print(f"🏁 ANÁLISIS COMPLETADO")
+    print(f"   Direcciones analizadas: {len(resultados)}")
+    print(f"   Direcciones actualizadas: {sum(1 for r in resultados if r['actualizado'])}")
+    print(f"{'='*60}\n")
+    
     return {"analizadas": len(resultados), "resultados": resultados}
