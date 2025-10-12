@@ -8,6 +8,7 @@ import {
   Clock,
   Eye,
   Info,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
 
-export const getColumnsPerfilRiesgo = (setSelected) => {
+export const getColumnsPerfilRiesgo = (setSelected, actualizarRiesgo) => {
   const router = useRouter()
 
   return [
@@ -27,9 +28,7 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() =>
-            column.toggleSorting(column.getIsSorted() === "asc")
-          }
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Dirección
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -62,8 +61,7 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
         return (
           <div
             className={`inline-flex items-center px-2.5 py-1 rounded-full border ${
-              colorMap[nivel] ||
-              "bg-gray-100 border-gray-200 text-gray-600"
+              colorMap[nivel] || "bg-gray-100 border-gray-200 text-gray-600"
             }`}
           >
             {iconMap[nivel] || null}
@@ -96,7 +94,7 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
 
         return (
           <div className="flex justify-end gap-1">
-            {/* Ver detalle de dirección */}
+            {/* 👁 Ver dirección */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -115,7 +113,7 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
               </Tooltip>
             </TooltipProvider>
 
-            {/* Ver motivo del riesgo */}
+            {/* ℹ Motivo del riesgo */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -129,7 +127,26 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p className="text-xs">Ver motivo del riesgo</p>
+                  <p className="text-xs">Ver motivo</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* 🔄 Actualizar riesgo individual */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-green-100"
+                    onClick={() => actualizarRiesgo(direccion)}
+                  >
+                    <RefreshCw className="h-4 w-4 text-green-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Actualizar riesgo</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -139,3 +156,4 @@ export const getColumnsPerfilRiesgo = (setSelected) => {
     },
   ]
 }
+

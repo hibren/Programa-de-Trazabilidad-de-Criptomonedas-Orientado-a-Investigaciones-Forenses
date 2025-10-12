@@ -32,7 +32,7 @@ export default function PerfilRiesgoContent() {
     }
   }
 
-  const reAnalizarRiesgo = async () => {
+  const reAnalizarTodo = async () => {
     setLoading(true)
     try {
       const res = await fetch(`${API_URL}/analisis/riesgo`, { method: "POST" })
@@ -53,6 +53,30 @@ export default function PerfilRiesgoContent() {
     }
   }
 
+  // 🔄 Reanalizar una dirección individual
+  const actualizarRiesgoIndividual = async (direccion) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/analisis/riesgo?direccion=${direccion}`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      toast({
+        title: "Riesgo actualizado",
+        description: `Dirección ${direccion} → Nivel: ${data?.resultados?.[0]?.nivel || "Desconocido"}`,
+      })
+      await loadDirecciones()
+    } catch (error) {
+      toast({
+        title: "Error al actualizar riesgo",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadDirecciones()
   }, [])
@@ -64,16 +88,16 @@ export default function PerfilRiesgoContent() {
           <Shield className="h-5 w-5 text-blue-600" />
           Monitoreo de Perfiles de Riesgo
         </h2>
-        <Button onClick={reAnalizarRiesgo} disabled={loading}>
+        <Button onClick={reAnalizarTodo} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading && "animate-spin"}`} />
-          {loading ? "Actualizando..." : "Reanalizar Riesgo"}
+          {loading ? "Actualizando..." : "Reanalizar Todo"}
         </Button>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <h3 className="text-lg font-semibold mb-4">Direcciones Monitoreadas</h3>
         <DataTable
-          columns={getColumnsPerfilRiesgo(setSelected)}
+          columns={getColumnsPerfilRiesgo(setSelected, actualizarRiesgoIndividual)}
           data={direcciones}
           filterColumn="direccion"
         />
@@ -85,12 +109,21 @@ export default function PerfilRiesgoContent() {
           <div className="bg-white rounded-lg shadow-lg w-[90%] sm:w-[450px] p-6">
             <h2 className="text-lg font-semibold mb-3">Detalle de Riesgo</h2>
             <p className="text-sm mb-2">
-              <strong>Dirección:</strong> <span className="font-mono">{selected.direccion}</span>
+              <strong>Dirección:</strong>{" "}
+              <span className="font-mono">{selected.direccion}</span>
             </p>
-            <p className="text-sm mb-1"><strong>Nivel:</strong> {selected.perfil_riesgo}</p>
-            <p className="text-sm mb-1"><strong>Total puntos:</strong> {selected.total ?? "N/A"}</p>
-            <p className="text-sm mb-1"><strong>Reportes:</strong> {selected.cantidad_reportes}</p>
-            <p className="text-sm mb-1"><strong>Actividad:</strong> {selected.actividad}</p>
+            <p className="text-sm mb-1">
+              <strong>Nivel:</strong> {selected.perfil_riesgo}
+            </p>
+            <p className="text-sm mb-1">
+              <strong>Total puntos:</strong> {selected.total ?? "N/A"}
+            </p>
+            <p className="text-sm mb-1">
+              <strong>Reportes:</strong> {selected.cantidad_reportes}
+            </p>
+            <p className="text-sm mb-1">
+              <strong>Actividad:</strong> {selected.actividad}
+            </p>
             <p className="text-sm mb-1">
               <strong>Categorías:</strong>{" "}
               {selected.categorias?.join(", ") || "N/A"}
@@ -116,3 +149,4 @@ export default function PerfilRiesgoContent() {
     </div>
   )
 }
+
