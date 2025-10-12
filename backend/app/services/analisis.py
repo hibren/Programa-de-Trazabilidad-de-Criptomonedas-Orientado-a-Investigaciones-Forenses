@@ -13,20 +13,29 @@ async def get_all_analisis():
 
 
 async def generar_analisis_por_direccion(address: str) -> Optional[AnalisisModel]:
-    # 1. Buscar cluster
+    # 0️⃣ Buscar primero si ya existe en la BD
+    analisis_existente = await analisis_collection.find_one({"cluster.direccion": address})
+    if analisis_existente:
+        print(f"✅ Análisis encontrado en BD para {address}")
+        analisis_existente["_id"] = str(analisis_existente["_id"])
+        return AnalisisModel(**analisis_existente)
+
+    print(f"🧩 Generando nuevo análisis para {address}...")
+
+    # 1️⃣ Buscar cluster
     cluster = await get_cluster_by_address(address)
     if not cluster:
         cluster = await fetch_and_save_cluster(address)
     if not cluster:
         return None
 
-    # 2. Buscar reportes
+    # 2️⃣ Buscar reportes (desde BD o API)
     reportes = []
     for dir_ in cluster.direccion:
         r = await fetch_reportes_by_address(dir_)
         reportes.extend(r)
 
-    # 3. Calcular riesgo
+    # 3️⃣ Calcular riesgo
     categorias = [rep.scamCategory for rep in reportes]
     if "RANSOMWARE" in categorias or "FAKE_RETURNS" in categorias:
         riesgo = "Alto"
@@ -35,6 +44,7 @@ async def generar_analisis_por_direccion(address: str) -> Optional[AnalisisModel
     else:
         riesgo = "Bajo"
 
+    # 4️⃣ Construir documento
     analisis_doc = {
         "cluster": cluster.dict(by_alias=True),
         "reportes": [Reporte(**r.dict(by_alias=True)).dict(by_alias=True) for r in reportes],
@@ -43,7 +53,11 @@ async def generar_analisis_por_direccion(address: str) -> Optional[AnalisisModel
         "createdAt": datetime.utcnow()
     }
 
+    # 5️⃣ Guardar en BD
     result = await analisis_collection.insert_one(analisis_doc)
     analisis_doc["_id"] = str(result.inserted_id)
 
+    print(f"💾 Análisis guardado en BD para {address}")
+
+    # 6️⃣ Devolver modelo
     return AnalisisModel(**analisis_doc)
