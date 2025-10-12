@@ -77,6 +77,16 @@ export const getColumnsDirecciones = () => {
                   </span>
                 </div>
               )
+              case "crítico":
+                return (
+                  <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-purple-100 border border-purple-200">
+                    <XCircle className="w-3 h-3 text-purple-700 mr-1" />
+                    <span className="text-xs font-medium text-purple-800">
+                      Crítico
+                    </span>
+                  </div>
+                )
+
             default:
               return (
                 <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200">
