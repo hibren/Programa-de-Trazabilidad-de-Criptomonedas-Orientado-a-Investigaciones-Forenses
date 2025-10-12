@@ -21,6 +21,7 @@ export default function AnalisisLayout({ children }) {
       {/* 🧭 Barra lateral */}
       <Sidebar activeItem="grafos" />
 
+      {/* Contenido principal */}
       <div className="md:ml-64 flex flex-col min-h-screen">
         {/* 🔝 Barra superior */}
         <TopBar
