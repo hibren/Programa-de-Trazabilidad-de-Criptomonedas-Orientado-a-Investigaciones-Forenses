@@ -1,8 +1,8 @@
-import SelectInput from "@/components/atoms/SelectInput"
-import Input from "@/components/atoms/Input"
-import Button from "@/components/atoms/Button"
-import Card from "@/components/molecules/Card"
+"use client"
+
 import React, { useState } from "react"
+import Card from "@/components/molecules/Card"
+import Button from "@/components/atoms/Button"
 
 export default function PageMonitoreo() {
   const [intervalo, setIntervalo] = useState("")
@@ -50,29 +50,33 @@ export default function PageMonitoreo() {
 
         <div className="space-y-4">
           {/* Intervalo */}
-          <SelectInput
-            label="Intervalo de Verificación"
-            placeholder="Seleccionar intervalo"
-            value={intervalo}
-            onChange={setIntervalo}
-            options={[
-              { value: "5min", label: "Cada 5 minutos" },
-              { value: "30min", label: "Cada 30 minutos" },
-              { value: "1h", label: "Cada hora" },
-              { value: "24h", label: "Cada 24 horas" },
-            ]}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Intervalo de Verificación
+            </label>
+            <select
+              value={intervalo}
+              onChange={(e) => setIntervalo(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Seleccionar intervalo</option>
+              <option value="5min">Cada 5 minutos</option>
+              <option value="30min">Cada 30 minutos</option>
+              <option value="1h">Cada hora</option>
+              <option value="24h">Cada 24 horas</option>
+            </select>
+          </div>
 
           {/* Umbral */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Umbral de Alerta (BTC)
             </label>
-            <Input
+            <input
               type="text"
               value={umbral}
               onChange={(e) => setUmbral(e.target.value)}
-              className="border-gray-300 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 

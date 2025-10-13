@@ -28,7 +28,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export function DataTable({ columns, data, filterColumn = "direccion" }) {
+export function DataTable({
+  columns = [],
+  data = [],
+  filterColumn = "direccion",
+  emptyMessage = "Sin resultados.",
+}) {
   const [sorting, setSorting] = React.useState([])
   const [columnFilters, setColumnFilters] = React.useState([])
   const [columnVisibility, setColumnVisibility] = React.useState({})
@@ -53,18 +58,29 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
     },
   })
 
+  const filterCol = table.getColumn(filterColumn)
+
   return (
     <div className="w-full">
-      {/* Filtro y selección de columnas */}
+      {/* 🔍 Filtro y selección de columnas */}
       <div className="flex items-center py-4">
-        <Input
-          placeholder={`Buscar ${filterColumn}...`}
-          value={table.getColumn(filterColumn)?.getFilterValue() ?? ""}
-          onChange={(event) =>
-            table.getColumn(filterColumn)?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
+        {filterCol ? (
+          <Input
+            placeholder={`Buscar ${filterColumn}...`}
+            value={filterCol?.getFilterValue?.() || ""}
+            onChange={(event) =>
+              filterCol.setFilterValue(event.target.value)
+            }
+            className="max-w-sm"
+          />
+        ) : (
+          <Input
+            placeholder="Buscar..."
+            disabled
+            className="max-w-sm opacity-60"
+          />
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -91,7 +107,7 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
         </DropdownMenu>
       </div>
 
-      {/* Tabla responsive con scroll horizontal */}
+      {/* 📊 Tabla con scroll horizontal */}
       <div className="overflow-x-auto rounded-md border">
         <Table className="min-w-[600px]">
           <TableHeader>
@@ -110,6 +126,7 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
               </TableRow>
             ))}
           </TableHeader>
+
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
@@ -129,8 +146,11 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Sin resultados.
+                <TableCell
+                  colSpan={columns.length || 1}
+                  className="h-24 text-center text-gray-500"
+                >
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
@@ -138,7 +158,7 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
         </Table>
       </div>
 
-      {/* Footer con paginación */}
+      {/* ⏭️ Footer con paginación */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button
           variant="outline"
@@ -160,4 +180,3 @@ export function DataTable({ columns, data, filterColumn = "direccion" }) {
     </div>
   )
 }
-
