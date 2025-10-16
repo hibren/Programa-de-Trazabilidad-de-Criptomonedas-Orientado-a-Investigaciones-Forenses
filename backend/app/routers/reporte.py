@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.schemas.reporte import Reporte as ReporteSchema
 from app.services.reporte import get_all_reportes, fetch_reportes_by_address
+from app.security import check_permissions_auto
+from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/reportes", tags=["reportes"])
 

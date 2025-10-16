@@ -1,5 +1,5 @@
 # app/routers/direccion.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from app.schemas.direccion import DireccionCreateSchema, DireccionResponseSchema, DireccionFetchRequest
 from app.services.direccion import (
@@ -13,11 +13,13 @@ from app.services.direccion import (
 from app.models.direccion import DireccionModel
 from app.services.transaccion import get_transacciones_by_direccion
 from app.schemas.transaccion import TransaccionResponseSchema
+from app.security import check_permissions_auto
+from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/direcciones", tags=["direcciones"])
 
 @router.post("/", response_model=DireccionResponseSchema)
-async def create_direccion_endpoint(direccion: DireccionCreateSchema):
+async def create_direccion_endpoint(direccion: DireccionCreateSchema, current_user: Usuario = Depends(check_permissions_auto)):
     try:
         created = await create_direccion(direccion.model_dump())
         print("CREATED:", created)
@@ -27,11 +29,11 @@ async def create_direccion_endpoint(direccion: DireccionCreateSchema):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[DireccionResponseSchema])
-async def list_direcciones():
+async def list_direcciones(current_user: Usuario = Depends(check_permissions_auto)):
     return await get_all_direcciones()
 
 @router.get("/{direccion}", response_model=DireccionResponseSchema)
-async def get_direccion(direccion: str):
+async def get_direccion(direccion: str, current_user: Usuario = Depends(check_permissions_auto)):
     try:
         direccion_doc = await get_direccion_by_value(direccion)
         if not direccion_doc:
@@ -45,7 +47,7 @@ async def get_direccion(direccion: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{direccion_id}", response_model=DireccionResponseSchema)
-async def update_direccion_endpoint(direccion_id: str, direccion: DireccionCreateSchema):
+async def update_direccion_endpoint(direccion_id: str, direccion: DireccionCreateSchema, current_user: Usuario = Depends(check_permissions_auto)):
     try:
         updated = await update_direccion(direccion_id, direccion.model_dump())
         if not updated:
@@ -59,7 +61,7 @@ async def update_direccion_endpoint(direccion_id: str, direccion: DireccionCreat
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{direccion_id}")
-async def delete_direccion_endpoint(direccion_id: str):
+async def delete_direccion_endpoint(direccion_id: str, current_user: Usuario = Depends(check_permissions_auto)):
     try:
         deleted_count = await delete_direccion(direccion_id)
         if deleted_count == 0:
@@ -72,7 +74,7 @@ async def delete_direccion_endpoint(direccion_id: str):
         raise HTTPException(status_code=500, detail=str(e))
     
 @router.post("/fetch", response_model=DireccionModel)
-async def fetch_direccion(request: DireccionFetchRequest):
+async def fetch_direccion(request: DireccionFetchRequest, current_user: Usuario = Depends(check_permissions_auto)):
     try:
         return await fetch_and_save_direccion(request.direccion)
     except ValueError as e:
@@ -82,7 +84,7 @@ async def fetch_direccion(request: DireccionFetchRequest):
     
 
 @router.get("/{direccion}/transacciones", response_model=List[TransaccionResponseSchema])
-async def get_transacciones_de_direccion(direccion: str):
+async def get_transacciones_de_direccion(direccion: str, current_user: Usuario = Depends(check_permissions_auto)):
     direccion_doc = await get_direccion_by_value(direccion)
     if not direccion_doc:
         raise HTTPException(status_code=404, detail="Dirección no encontrada")

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Network } from "vis-network"
 import { Loader2 } from "lucide-react"
 
@@ -8,6 +9,7 @@ export default function AnalisisGraph() {
   const containerRef = useRef(null)
   const [selectedNode, setSelectedNode] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { token } = useAuth()
 
   const API = "http://localhost:8000"
 
@@ -44,15 +46,30 @@ export default function AnalisisGraph() {
 
   useEffect(() => {
     const cargarRelaciones = async () => {
+      if (!token) {
+        console.warn("No hay token, saltando carga de relaciones.")
+        setLoading(false)
+        return
+      }
+
       try {
         // 1️⃣ Detectar nuevas relaciones automáticamente
-        await fetch(`${API}/relaciones/detectar`, { method: "POST" })
+        await fetch(`${API}/relaciones/detectar`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
 
         // 2️⃣ Luego traer las relaciones actuales
-        const res = await fetch(`${API}/relaciones`)
+        const res = await fetch(`${API}/relaciones`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
         const relaciones = await res.json()
 
-        if (!relaciones || relaciones.length === 0) {
+        if (!Array.isArray(relaciones) || relaciones.length === 0) {
           console.warn("⚠️ No se encontraron relaciones en la base de datos.")
           setLoading(false)
           return
@@ -127,7 +144,7 @@ export default function AnalisisGraph() {
     }
 
     cargarRelaciones()
-  }, [])
+  }, [token])
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

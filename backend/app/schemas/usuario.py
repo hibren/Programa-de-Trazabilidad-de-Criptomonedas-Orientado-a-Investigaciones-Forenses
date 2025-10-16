@@ -1,7 +1,17 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional
 from datetime import date
 from app.database import PyObjectId
+
+class UsuarioUpdatePerfilSchema(BaseModel):
+    perfil_id: str = Field(..., alias="perfilId")
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            PyObjectId: str
+        }
 
 class DatosPersonales(BaseModel):
     nombre: str
@@ -20,26 +30,43 @@ class Domicilio(BaseModel):
     ciudad: str
     calle: str
 
-class UsuarioCreate(BaseModel):
-    username: str
-    password: str
-    perfil: PyObjectId
-    activo: bool
+class UsuarioBase(BaseModel):
+    username: EmailStr = Field(...)
+    perfil: PyObjectId = Field(...)
+    activo: bool = True
     datos_personales: DatosPersonales
     contactos: List[Contacto]
     domicilios: List[Domicilio]
 
-class UsuarioLogin(BaseModel):
-    username: str
-    password: str
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {PyObjectId: str}
+
+
+class UsuarioCreate(BaseModel):
+    username: EmailStr = Field(...)
+    password: str = Field(...)
+    perfil: str = Field(...)
+    activo: bool = True
+    datos_personales: DatosPersonales
+    contactos: List[Contacto]
+    domicilios: List[Domicilio]
+
+class UsuarioUpdate(BaseModel):
+    username: Optional[EmailStr] = None
+    perfil: Optional[str] = None
+    datos_personales: Optional[DatosPersonales] = None
+    contactos: Optional[List[Contacto]] = None
+    domicilios: Optional[List[Domicilio]] = None
+
+class UsuarioResponseSchema(UsuarioBase):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
 
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
 class LoginRequest(BaseModel):
-    email: str  # En realidad recibirá el email del front
+    username: str # Changed from email to username to match login logic
     password: str

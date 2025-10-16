@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Button from "../atoms/Button"
 import Icon from "../atoms/Icon"
 import { DataTable } from "@/components/DataTable/DataTable"
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 import { CheckCircle, XCircle } from "lucide-react"
 
 const DireccionesContent = () => {
@@ -35,16 +36,18 @@ const DireccionesContent = () => {
   const [open, setOpen] = useState(false)
   const [address, setAddress] = useState("")
   const { toast } = useToast()
+  const { token } = useAuth()
 
   // Cargar direcciones desde la BD
-  const loadDirecciones = async () => {
+  const loadDirecciones = useCallback(async () => {
+    if (!token) return
     try {
-      const data = await getDirecciones()
+      const data = await getDirecciones(token)
       setDirecciones(data)
     } catch (e) {
       console.error(e.message)
     }
-  }
+  }, [token])
 
   // Importar desde API externa
   const handleImportar = async () => {
@@ -63,7 +66,7 @@ const DireccionesContent = () => {
     }
 
     try {
-      await fetchDireccionFromAPI(address)
+      await fetchDireccionFromAPI(address, token)
       await loadDirecciones()
       setAddress("")
       setOpen(false)
@@ -93,7 +96,7 @@ const DireccionesContent = () => {
 
   useEffect(() => {
     loadDirecciones()
-  }, [])
+  }, [loadDirecciones])
 
   // Exportar a Excel
   const exportToExcel = () => {

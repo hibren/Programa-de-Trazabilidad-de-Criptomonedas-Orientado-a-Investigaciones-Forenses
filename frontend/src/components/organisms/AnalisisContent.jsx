@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { getColumnsAnalisis } from "@/components/DataTable/columns/getColumnsAnalisis"
 import { useToast } from "@/components/ui/use-toast"
@@ -30,10 +31,16 @@ const AnalisisContent = () => {
   const [analisis, setAnalisis] = useState([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const { token } = useAuth() 
 
   const loadAnalisis = async () => {
+    if (!token) return
     try {
-      const res = await fetch(`${API_URL}/analisis/`)
+      const res = await fetch(`${API_URL}/analisis/`, {
+        headers: {
+          'Authorization': `Bearer ${token}`, // ✅ Agregado header
+        },
+      })
       if (!res.ok) throw new Error("Error cargando análisis")
       const data = await res.json()
       setAnalisis(data)
@@ -56,7 +63,7 @@ const AnalisisContent = () => {
 
   useEffect(() => {
     loadAnalisis()
-  }, [])
+  }, [token])
 
   const analisisCriticos = analisis.filter((a) => {
     const riesgo = a.riesgo?.toString().toLowerCase()
@@ -96,6 +103,22 @@ const AnalisisContent = () => {
       ]),
     })
     doc.save("analisis.pdf")
+  }
+
+  if (!token) {
+    return (
+      <div className="flex-1 bg-gray-50 min-h-screen p-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+          <XCircle className="mx-auto h-12 w-12 text-red-500 mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Acceso Restringido
+          </h3>
+          <p className="text-gray-600">
+            No tiene permisos para acceder a esta funcionalidad.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { useRouter } from 'next/navigation'
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,12 +11,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const { login } = useAuth()
+  const router = useRouter()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,23 +27,29 @@ export default function LoginPage() {
     setSuccess(false)
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/usuarios/login", {
+      const res = await fetch("http://localhost:8000/administracion/usuarios/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       })
 
       if (!res.ok) {
-        throw new Error("Error en login")
+        const errorData = await res.json();
+        throw new Error(errorData.detail || "Error en login");
       }
 
       const data = await res.json()
-      localStorage.setItem("token", data.token)
+      login(data.access_token) // Usamos la función de login del contexto
       setSuccess(true)
+
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 1000)
     } catch (err) {
-      setError("Credenciales inválidas")
+      setError(err.message || "Credenciales inválidas")
     } finally {
       setIsLoading(false)
     }
@@ -62,10 +72,16 @@ export default function LoginPage() {
 
       {/* Right Side - Formulario */}
       <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-green-50 to-gray-100">
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md space-y-6 bg-card p-8 rounded-xl shadow-xl"
-        >
+        <div className="relative w-full max-w-md">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center rounded-xl">
+              <Loader2 className="h-12 w-12 animate-spin text-green-700" />
+            </div>
+          )}
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 bg-card p-8 rounded-xl shadow-xl"
+          >
           <h1 className="text-2xl font-bold text-center text-foreground">
             Iniciar sesión
           </h1>
@@ -82,19 +98,19 @@ export default function LoginPage() {
           {success && (
             <Alert>
               <AlertDescription>
-                ✅ Inicio de sesión exitoso
+                ✅ Inicio de sesión exitoso. Redirigiendo...
               </AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
+            <Label htmlFor="email">Usuario</Label>
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@email.com"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="usuario@dominio.com"
               required
               className="bg-background text-foreground"
             />
@@ -132,16 +148,8 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Iniciando sesión...
-              </>
-            ) : (
-              "Iniciar sesión"
-            )}
+            >
+            Iniciar sesión
           </Button>
 
           <div className="text-center text-sm text-muted-foreground mt-6">
@@ -150,14 +158,9 @@ export default function LoginPage() {
               Contacta al administrador
             </a>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )
 }
-
-
-
-
-
-

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { getColumnsTransacciones } from "@/components/DataTable/columns/getColumnsTransacciones"
 import { useToast } from "@/components/ui/use-toast"
@@ -23,6 +24,7 @@ const API_URL = "http://localhost:8000" // 👈 ajusta según tu backend
 const TransaccionesContent = () => {
   const [transacciones, setTransacciones] = useState([])
   const { toast } = useToast()
+  const { token } = useAuth()
 
   const stats = [
     {
@@ -59,8 +61,13 @@ const TransaccionesContent = () => {
 
   // 🔗 cargar transacciones
   const loadTransacciones = async () => {
+    if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/transacciones`)
+      const res = await fetch(`${API_URL}/transacciones`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       if (!res.ok) throw new Error("Error cargando transacciones")
       const data = await res.json()
       setTransacciones(data)
@@ -78,10 +85,10 @@ const TransaccionesContent = () => {
       })
     }
   }
-
+  
   useEffect(() => {
     loadTransacciones()
-  }, [])
+  }, [token])
 
   // Exportar a Excel
   const exportToExcel = () => {

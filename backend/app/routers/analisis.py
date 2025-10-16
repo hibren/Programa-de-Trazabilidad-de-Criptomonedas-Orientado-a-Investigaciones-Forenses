@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 from app.schemas.analisis import (
     AnalisisOut,
@@ -10,18 +10,20 @@ from app.services.analisis import (
     get_all_analisis,
     analizar_riesgo_direcciones
 )
+from app.security import check_permissions_auto
+from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/analisis", tags=["analisis"])
 
 
 @router.get("/")
-async def list_analisis():
+async def list_analisis(current_user: Usuario = Depends(check_permissions_auto)):
     analisis = await get_all_analisis()
     return analisis
 
 
 @router.post("/generar/{address}", response_model=AnalisisOut)
-async def generar(address: str):
+async def generar(address: str, current_user: Usuario = Depends(check_permissions_auto)):
     analisis = await generar_analisis_por_direccion(address)
     if not analisis:
         raise HTTPException(status_code=404, detail="No se pudo generar el análisis")
@@ -35,7 +37,8 @@ async def generar(address: str):
 )
 async def analizar_riesgo_endpoint(
     data: Optional[AnalisisRiesgoIn] = None,
-    direccion: Optional[str] = Query(None)
+    direccion: Optional[str] = Query(None),
+    current_user: Usuario = Depends(check_permissions_auto)
 ):
     """
     - Si se recibe 'direccion' en query param → analiza solo esa dirección.

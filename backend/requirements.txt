@@ -4,7 +4,7 @@ requests
 pydantic
 motor        # driver async para MongoDB
 httpx
-
+email-validator
 passlib==1.7.4
 bcrypt==3.2.0
 python-jose[cryptography]
