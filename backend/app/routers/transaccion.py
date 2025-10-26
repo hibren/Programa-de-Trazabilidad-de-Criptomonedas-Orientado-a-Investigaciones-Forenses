@@ -23,9 +23,10 @@ async def create_transaccion_endpoint(transaccion: TransaccionCreateSchema, curr
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[TransaccionResponseSchema])
-async def list_transacciones(current_user: Usuario = Depends(check_permissions_auto)):
+async def list_transacciones():
     transacciones = await get_all_transacciones()
     return [t.model_dump(by_alias=True) for t in transacciones]
+
 
 @router.get("/{transaccion_hash}", response_model=TransaccionResponseSchema)
 async def get_transaccion(transaccion_hash: str, current_user: Usuario = Depends(check_permissions_auto)):

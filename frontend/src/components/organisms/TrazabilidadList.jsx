@@ -1,178 +1,237 @@
 "use client"
 
-import { useState } from "react"
-import { Link2, Download, Eye } from "lucide-react"
-
-const trazas = [
-  {
-    id: "trace_001",
-    riesgo: "Alto",
-    riesgoColor: "bg-red-500",
-    origen: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-    destino: "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
-    patrones: ["Layering", "Mixer"],
-    monto: "12.5 BTC",
-    saltos: "5 saltos",
-    fecha: "2024-01-15 14:30:00",
-    detalles: {
-      flujo: [
-        { tipo: "Origen", direccion: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", monto: "12.5 BTC" },
-        { tipo: "Mixer", direccion: "bc1qa8rr7xfvkvy51643lydnw9fe599tzzwf5mdq", monto: "12.48 BTC" },
-        { tipo: "Intermediario", direccion: "3F2bg129cg2pjGJdw8EyhJuJnkLtkTzd5", monto: "12.45 BTC" },
-        { tipo: "Intermediario", direccion: "1BoatSLRHtKNngkdXEeobR76b53LETtpyT", monto: "12.42 BTC" },
-        { tipo: "Destino", direccion: "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", monto: "12.38 BTC" },
-      ],
-      indicadores: [
-        "Uso de servicio mixer",
-        "Múltiples saltos rápidos",
-        "Montos decrecientes (fees)",
-      ],
-    },
-  },
-  {
-    id: "trace_002",
-    riesgo: "Medio",
-    riesgoColor: "bg-yellow-400",
-    origen: "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVt2",
-    destino: "bc1qxyz6ydgy3jrqztq2mbyf249q83kkfjhx0wlh",
-    patrones: ["Smurfing"],
-    monto: "0.5 BTC",
-    saltos: "3 saltos",
-    fecha: "2024-01-14 10:15:00",
-    detalles: {
-      flujo: [
-        { tipo: "Origen", direccion: "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVt2", monto: "0.5 BTC" },
-        { tipo: "Intermediario", direccion: "bc1qabcde1234xyz5678lmno9prstuvw0", monto: "0.49 BTC" },
-        { tipo: "Destino", direccion: "bc1qxyz6ydgy3jrqztq2mbyf249q83kkfjhx0wlh", monto: "0.48 BTC" },
-      ],
-      indicadores: ["Transacciones pequeñas frecuentes", "Reducción de montos (fees)"],
-    },
-  },
-]
+import { useState, useEffect } from "react"
+import { Link2, Download, Eye, ShieldAlert, Globe2, Coins, FileWarning } from "lucide-react"
 
 const TrazabilidadList = () => {
+  const [trazas, setTrazas] = useState([])
   const [trazaActiva, setTrazaActiva] = useState(null)
 
-  const toggleDetalles = (id) => {
-    setTrazaActiva(trazaActiva === id ? null : id)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/trazabilidad/trazas")
+        const data = await res.json()
+        setTrazas(data.trazas || [])
+      } catch (error) {
+        console.error("Error al cargar trazas:", error)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const toggleDetalles = (hash) => {
+    setTrazaActiva(trazaActiva === hash ? null : hash)
   }
 
-  const exportarAnalisis = (id) => {
-    alert(`📄 Exportando análisis de ${id}...`)
+  const exportarAnalisis = (hash) => {
+    alert(`📄 Exportando análisis de la transacción ${hash}...`)
+  }
+
+  // ✅ Colores de riesgo
+  const getRiesgoColor = (nivel) => {
+    switch (nivel?.toLowerCase()) {
+      case "alto":
+        return "bg-red-500"
+      case "medio":
+        return "bg-yellow-400"
+      case "bajo":
+        return "bg-green-500"
+      default:
+        return "bg-gray-400"
+    }
   }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-4">
+      {/* Header */}
       <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
         <Link2 className="h-4 w-4 text-gray-500" />
         <h2 className="font-medium text-gray-700">Resultados de Trazabilidad</h2>
       </div>
-      <p className="text-sm text-gray-500 px-5 pt-2 pb-4">
-        Flujos de fondos detectados desde origen a destino
-      </p>
 
-      <div className="space-y-3 px-5 pb-5">
-        {trazas.map((trace) => (
-          <div
-            key={trace.id}
-            className="border border-gray-100 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition"
-          >
-            <div className="flex justify-between items-start">
-              {/* Información general */}
-              <div className="flex flex-col space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm bg-gray-200 px-2 py-0.5 rounded">
-                    {trace.id}
-                  </span>
-                  <span
-                    className={`text-xs text-white px-2 py-0.5 rounded ${trace.riesgoColor}`}
-                  >
-                    {trace.riesgo}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  <strong>Origen:</strong> {trace.origen}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Destino:</strong> {trace.destino}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Patrones detectados:</strong>{" "}
-                  {trace.patrones.map((p, i) => (
-                    <span
-                      key={i}
-                      className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded mr-1"
-                    >
-                      {p}
+      {/* Lista */}
+      <div className="space-y-3 px-5 pb-5 pt-3">
+        {trazas.length === 0 ? (
+          <p className="text-gray-500 text-sm">No se encontraron trazas.</p>
+        ) : (
+          trazas.map((trace, index) => (
+            <div
+              key={index}
+              className="border border-gray-100 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition"
+            >
+              {/* Cabecera principal */}
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm bg-gray-200 px-2 py-0.5 rounded">
+                      {trace.hash?.slice(0, 10)}...
                     </span>
-                  ))}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">{trace.fecha}</p>
-              </div>
-
-              {/* Monto total */}
-              <div className="text-right">
-                <p className="text-lg font-semibold text-gray-800">{trace.monto}</p>
-                <p className="text-xs text-gray-500">{trace.saltos}</p>
-              </div>
-            </div>
-
-            {/* Botones de acción */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => toggleDetalles(trace.id)}
-                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-1.5 rounded-md transition"
-              >
-                <Eye className="h-4 w-4" />
-                Ver Detalles Completos
-              </button>
-              <button
-                onClick={() => exportarAnalisis(trace.id)}
-                className="flex items-center gap-1 bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium px-3 py-1.5 rounded-md border border-green-300 transition"
-              >
-                <Download className="h-4 w-4" />
-                Exportar Análisis
-              </button>
-            </div>
-
-            {/* Sección de detalles expandibles */}
-            {trazaActiva === trace.id && (
-              <div className="mt-5 border-t border-gray-200 pt-4">
-                <h3 className="font-medium text-gray-700 mb-3 flex items-center gap-1">
-                  <Link2 className="h-4 w-4 text-gray-500" />
-                  Flujo de Fondos (Camino Completo)
-                </h3>
-
-                <div className="space-y-2 mb-4">
-                  {trace.detalles.flujo.map((f, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-center bg-white border border-gray-100 rounded-md px-3 py-2"
+                    <span
+                      className={`text-xs text-white px-2 py-0.5 rounded ${getRiesgoColor(trace.perfil_riesgo)}`}
                     >
-                      <p className="text-sm text-gray-700 truncate w-2/3">
-                        {f.direccion}{" "}
-                        <span className="text-xs text-gray-500 ml-2">({f.tipo})</span>
-                      </p>
-                      <p className="text-sm font-semibold text-gray-800">{f.monto}</p>
+                      Riesgo {trace.perfil_riesgo || "desconocido"}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mt-1">
+                    <strong>Estado:</strong> {trace.estado}
+                  </p>
+
+                  <p className="text-sm text-gray-600">
+                    <strong>Monto total:</strong> {trace.monto_total} BTC
+                  </p>
+
+                  {/* Categorías */}
+                  {trace.categorias_denuncia?.length > 0 && (
+                    <div className="mt-1">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Categorías de denuncia:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {trace.categorias_denuncia.map((cat, i) => (
+                          <span
+                            key={i}
+                            className="inline-block bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded"
+                          >
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Reportes */}
+                  {trace.reportes_totales > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      🧾 Reportes: {trace.reportes_totales} totales ({trace.reportes_verificados} verificados,{" "}
+                      {trace.reportes_no_verificados} sin verificar)
+                    </p>
+                  )}
                 </div>
 
-                <h4 className="font-medium text-gray-700 mb-2">Indicadores Forenses</h4>
-                <div className="space-y-1">
-                  {trace.detalles.indicadores.map((ind, i) => (
-                    <p
-                      key={i}
-                      className="text-sm bg-red-100 text-red-700 px-3 py-1.5 rounded-md"
-                    >
-                      {ind}
-                    </p>
-                  ))}
+                {/* Monto total */}
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-gray-800">{trace.monto_total}</p>
+                  <p className="text-xs text-gray-500">BTC</p>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Botones */}
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => toggleDetalles(trace.hash)}
+                  className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-1.5 rounded-md transition"
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver Detalles
+                </button>
+                <button
+                  onClick={() => exportarAnalisis(trace.hash)}
+                  className="flex items-center gap-1 bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium px-3 py-1.5 rounded-md border border-green-300 transition"
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </button>
+              </div>
+
+              {/* 🔽 Sección Detalles Expandible */}
+              {trazaActiva === trace.hash && (
+                <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">
+                  <h4 className="font-medium text-gray-700 mb-2 flex items-center gap-1">
+                    <ShieldAlert className="h-4 w-4 text-gray-500" />
+                    Detalles del Bloque
+                  </h4>
+
+                  {trace.bloque ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-1 text-sm text-gray-600">
+                      <p>
+                        <strong>ID:</strong> {trace.bloque.id}
+                      </p>
+                      <p>
+                        <strong>Número:</strong> {trace.bloque.numero_bloque}
+                      </p>
+                      <p>
+                        <strong>Fecha:</strong> {new Date(trace.bloque.fecha).toLocaleString()}
+                      </p>
+                      <p className="col-span-2 sm:col-span-3">
+                        <strong>Hash:</strong> {trace.bloque.hash}
+                      </p>
+                      <p>
+                        <strong>Recompensa:</strong> {trace.bloque.recompensa_total} BTC
+                      </p>
+                      <p>
+                        <strong>Volumen:</strong> {trace.bloque.volumen_total} BTC
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Sin datos de bloque.</p>
+                  )}
+
+                  {/* Origen / Destino */}
+                  <div className="mt-3">
+                    <h5 className="font-medium text-gray-700 flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-gray-500" />
+                      Direcciones
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4 mt-1">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Origen</p>
+                        {trace.origen?.length > 0 ? (
+                          <ul className="list-disc list-inside text-sm text-gray-600">
+                            {trace.origen.map((o, i) => (
+                              <li key={i}>{o}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-gray-500">No disponible</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Destino</p>
+                        {trace.destino?.length > 0 ? (
+                          <ul className="list-disc list-inside text-sm text-gray-600">
+                            {trace.destino.map((d, i) => (
+                              <li key={i}>{d}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-gray-500">No disponible</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dominios */}
+                  {trace.dominios_asociados?.length > 0 && (
+                    <div className="mt-3">
+                      <h5 className="font-medium text-gray-700 flex items-center gap-1">
+                        <Globe2 className="h-4 w-4 text-gray-500" /> Dominios Relacionados
+                      </h5>
+                      <ul className="list-disc list-inside text-sm text-gray-600 mt-1">
+                        {trace.dominios_asociados.map((d, i) => (
+                          <li key={i}>{d}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Patrones Sospechosos */}
+                  {trace.patrones_sospechosos?.length > 0 && (
+                    <div className="mt-3">
+                      <h5 className="font-medium text-gray-700 flex items-center gap-1">
+                        <FileWarning className="h-4 w-4 text-gray-500" /> Patrones Sospechosos
+                      </h5>
+                      <ul className="list-disc list-inside text-sm text-gray-600 mt-1">
+                        {trace.patrones_sospechosos.map((p, i) => (
+                          <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

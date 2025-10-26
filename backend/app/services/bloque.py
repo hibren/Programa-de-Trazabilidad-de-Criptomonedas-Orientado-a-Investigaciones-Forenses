@@ -10,8 +10,8 @@ BASE_URL = "https://api.blockcypher.com/v1/btc/main"
 
 # Obtener todos
 async def get_all_bloques():
-    docs = await bloque_collection.find().to_list(100)
-    return [BloqueModel(**doc).dict(by_alias=True) for doc in docs]
+    docs = await bloque_collection.find().to_list(1000)
+    return [BloqueModel(**doc) for doc in docs]  # 👈 convierte cada doc en modelo
 
 async def create_bloque(data: dict) -> dict:
     result = await bloque_collection.insert_one(data)
