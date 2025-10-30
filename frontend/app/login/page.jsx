@@ -19,20 +19,24 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     setSuccess(false)
 
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+
     try {
       const res = await fetch("http://localhost:8000/administracion/usuarios/login", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({ username, password }),
+        body: formData,
       })
 
       if (!res.ok) {
