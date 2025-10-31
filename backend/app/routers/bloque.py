@@ -24,8 +24,9 @@ async def create_bloque_endpoint(bloque: BloqueCreateSchema, current_user: Usuar
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[BloqueResponseSchema])
-async def list_bloques(current_user: Usuario = Depends(check_permissions_auto)):
-    return await get_all_bloques()
+async def list_bloques():  # 👈 quitá el Depends(check_permissions_auto)
+    bloques = await get_all_bloques()
+    return [b.model_dump(by_alias=True) for b in bloques]
 
 @router.get("/{bloque_hash}", response_model=BloqueResponseSchema)
 async def get_bloque(bloque_hash: str, current_user: Usuario = Depends(check_permissions_auto)):

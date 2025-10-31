@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field, field_validator
 from app.database import PyObjectId
 
@@ -7,8 +7,8 @@ class TransaccionModel(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     hash: str
     fecha: datetime
-    inputs: List[PyObjectId] = Field(default_factory=list)
-    outputs: List[PyObjectId] = Field(default_factory=list)
+    inputs: List[Union[str, PyObjectId]] = Field(default_factory=list)
+    outputs: List[Union[str, PyObjectId]] = Field(default_factory=list)
     monto_total: float
     estado: str
     patrones_sospechosos: List[str] = Field(default_factory=list)
