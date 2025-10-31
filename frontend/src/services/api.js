@@ -1,13 +1,11 @@
 import { getSession } from "next-auth/react"
 
-const API_URL = "http://localhost:8000"
-
 const api = {
   get: async (path) => {
     const session = await getSession()
     const token = session?.user?.token
 
-    const res = await fetch(`${API_URL}/api${path}`, {
+    const res = await fetch(`/api${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -25,7 +23,7 @@ const api = {
     const session = await getSession()
     const token = session?.user?.token
 
-    const res = await fetch(`${API_URL}/api${path}`, {
+    const res = await fetch(`/api${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

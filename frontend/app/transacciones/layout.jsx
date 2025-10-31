@@ -11,11 +11,10 @@ export default function TransaccionesLayout({ children }) {
   const { token, loading } = useAuth()
   const [activeTab, setActiveTab] = useState("recientes")
 
+  // 🔹 Solo las dos pestañas que querés
   const tabs = [
     { id: "recientes", label: "Recientes" },
     { id: "pendientes", label: "Pendientes" },
-    { id: "alto-riesgo", label: "Alto Riesgo" },
-    { id: "analisis", label: "Análisis" },
   ]
 
   if (loading) {
@@ -36,7 +35,10 @@ export default function TransaccionesLayout({ children }) {
           <p className="text-gray-600 mb-6">
             Debe iniciar sesión para acceder a esta página.
           </p>
-          <Link href="/login" className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors px-6 py-2">
+          <Link
+            href="/login"
+            className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors px-6 py-2"
+          >
             Iniciar sesión
           </Link>
         </div>
@@ -73,3 +75,4 @@ export default function TransaccionesLayout({ children }) {
     </div>
   )
 }
+
