@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, List, Activity } from "lucide-react"
+import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, List } from "lucide-react"
 import DireccionGraph from "@/components/organisms/DireccionGraph"
 
 const API_URL = "http://localhost:8000"
@@ -51,7 +51,7 @@ export default function DireccionDetail({ direccion }) {
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen p-6">
-      {/* Encabezado limpio con la dirección */}
+      {/* Encabezado */}
       <div className="mb-8 border-l-4 border-green-700 pl-4">
         <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
           Dirección analizada
@@ -61,7 +61,7 @@ export default function DireccionDetail({ direccion }) {
 
       {/* === TABS === */}
       <Tabs defaultValue="resumen" className="w-full">
-        <TabsList className="flex gap-2 bg-transparent mb-6">
+        <TabsList className="mb-6">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="transacciones">Transacciones</TabsTrigger>
           <TabsTrigger value="bloques">Bloques</TabsTrigger>
@@ -71,7 +71,6 @@ export default function DireccionDetail({ direccion }) {
 
         {/* === TAB: RESUMEN === */}
         <TabsContent value="resumen">
-          {/* PANEL DE MÉTRICAS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
@@ -103,10 +102,7 @@ export default function DireccionDetail({ direccion }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
                 <p className="text-xs uppercase text-gray-500">Transacciones</p>
-                <h3 className="text-xl font-semibold text-gray-900 font-mono">
-                  {transacciones.length}
-                </h3>
-
+                <h3 className="text-xl font-semibold text-gray-900 font-mono">{transacciones.length}</h3>
                 <p className="text-xs text-gray-500">Histórico</p>
               </div>
               <List className="text-gray-600 w-6 h-6 opacity-80" />
@@ -213,7 +209,6 @@ export default function DireccionDetail({ direccion }) {
         </TabsContent>
 
         {/* === TAB: ANÁLISIS === */}
-        
         <TabsContent value="analisis">
           <Card>
             <CardHeader>
