@@ -82,6 +82,7 @@ async def obtener_todas_las_trazas():
             "origen": origen,
             "destino": destino,
             "perfil_riesgo": perfil_riesgo,
+            "ultimo_update_riesgo": direccion_doc.get("ultimo_update_riesgo") if direccion_doc else None, 
             "reportes_totales": cantidad_reportes,
             "reportes_verificados": reportes_verificados,
             "reportes_no_verificados": reportes_no_verificados,
