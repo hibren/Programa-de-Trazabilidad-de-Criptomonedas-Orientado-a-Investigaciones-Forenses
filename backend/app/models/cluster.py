@@ -3,7 +3,7 @@ from app.database import PyObjectId
 from typing import List, Optional
 
 class ClusterModel(BaseModel):
-    id: str = Field(alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id") #id: str = Field(alias="_id")
     direccion: List[str]
     tipo_riesgo: Optional[str] = None
     descripcion: Optional[str] = None
