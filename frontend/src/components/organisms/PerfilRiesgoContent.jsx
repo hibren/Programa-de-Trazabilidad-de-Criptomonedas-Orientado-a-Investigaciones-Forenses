@@ -6,6 +6,7 @@ import { RefreshCw, Shield } from "lucide-react"
 import { DataTable } from "@/components/DataTable/DataTable"
 import { getColumnsPerfilRiesgo } from "@/components/DataTable/columns/getColumnsPerfilRiesgo"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 const API_URL = "http://localhost:8000"
 
@@ -14,11 +15,18 @@ export default function PerfilRiesgoContent() {
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState(null)
   const { toast } = useToast()
+  const { token, loading: authLoading } = useAuth()  // ✅
 
   const loadDirecciones = async () => {
+    if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/direcciones`)
+      const res = await fetch(`${API_URL}/direcciones`, {
+        headers: {
+          Authorization: `Bearer ${token}`,  // ✅
+        },
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
       setDirecciones(data)
     } catch (error) {
@@ -33,9 +41,15 @@ export default function PerfilRiesgoContent() {
   }
 
   const reAnalizarTodo = async () => {
+    if (!token) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/analisis/riesgo`, { method: "POST" })
+      const res = await fetch(`${API_URL}/analisis/riesgo`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,  // ✅
+        },
+      })
       const data = await res.json()
       toast({
         title: "Reanálisis completado",
@@ -53,12 +67,15 @@ export default function PerfilRiesgoContent() {
     }
   }
 
-  // 🔄 Reanalizar una dirección individual
   const actualizarRiesgoIndividual = async (direccion) => {
+    if (!token) return
     setLoading(true)
     try {
       const res = await fetch(`${API_URL}/analisis/riesgo?direccion=${direccion}`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,  // ✅
+        },
       })
       const data = await res.json()
       toast({
@@ -78,8 +95,8 @@ export default function PerfilRiesgoContent() {
   }
 
   useEffect(() => {
-    loadDirecciones()
-  }, [])
+    if (!authLoading && token) loadDirecciones()  // ✅ Espera que cargue el AuthContext
+  }, [authLoading, token])
 
   return (
     <div className="flex-1 bg-gray-50 min-h-screen p-6">
