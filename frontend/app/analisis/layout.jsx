@@ -6,16 +6,44 @@ import TopBar from "@/components/organisms/TopBar"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
+import { Network, AlertTriangle, Link2, Shield } from "lucide-react"
 
 export default function AnalisisLayout({ children }) {
   const { token, loading } = useAuth()
   const pathname = usePathname()
 
   const tabs = [
-    { id: "trazabilidad", label: "Trazabilidad", href: "/analisis" },
+    { id: "trazabilidad", label: "Trazabilidad", href: "/analisis/trazabilidad" },
     { id: "patrones", label: "Patrones", href: "/analisis/patrones" },
-    { id: "filtros", label: "Filtros", href: "/analisis/filtros" },
+    { id: "analisis", label: "Análisis", href: "/analisis/analisisforense" },
     { id: "grafo", label: "Grafo", href: "/analisis/grafo" },
+  ]
+
+  const stats = [
+    {
+      title: "Trazas Activas",
+      value: "12",
+      subtitle: "+3 hoy",
+      icon: <Network className="h-6 w-6 text-gray-500" />,
+    },
+    {
+      title: "Patrones Detectados",
+      value: "8",
+      subtitle: "+2 esta semana",
+      icon: <AlertTriangle className="h-6 w-6 text-gray-500" />,
+    },
+    {
+      title: "Indicadores Forenses",
+      value: "156",
+      subtitle: "+24 hoy",
+      icon: <Link2 className="h-6 w-6 text-gray-500" />,
+    },
+    {
+      title: "Casos Críticos",
+      value: "3",
+      subtitle: "Requieren atención",
+      icon: <Shield className="h-6 w-6 text-gray-500" />,
+    },
   ]
 
   if (loading) {
@@ -36,7 +64,10 @@ export default function AnalisisLayout({ children }) {
           <p className="text-gray-600 mb-6">
             Debe iniciar sesión para acceder a esta página.
           </p>
-          <Link href="/login" className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors px-6 py-2">
+          <Link
+            href="/login"
+            className="w-full bg-gradient-to-r from-green-700 to-green-600 text-white font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-500 transition-colors px-6 py-2"
+          >
             Iniciar sesión
           </Link>
         </div>
@@ -58,7 +89,7 @@ export default function AnalisisLayout({ children }) {
         />
 
         {/* 🟩 Tabs principales */}
-        <div className="border-b bg-white px-6 mt-3">
+        <div className="border-b border-gray-200 bg-white px-6">
           <div className="flex gap-6 overflow-x-auto no-scrollbar text-sm font-medium text-gray-600">
             {tabs.map((tab) => {
               const isActive = pathname === tab.href
@@ -66,7 +97,7 @@ export default function AnalisisLayout({ children }) {
                 <Link
                   key={tab.id}
                   href={tab.href}
-                  className={`pb-3 border-b-2 transition-colors ${
+                  className={`py-3 border-b-2 transition-colors ${
                     isActive
                       ? "border-green-600 text-green-700"
                       : "border-transparent hover:text-green-600"
@@ -76,6 +107,37 @@ export default function AnalisisLayout({ children }) {
                 </Link>
               )
             })}
+          </div>
+        </div>
+
+        {/* 📊 Métricas generales (visibles en todas las solapas) */}
+        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((stat, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between"
+              >
+                <div>
+                  <h3 className="text-sm text-gray-500">{stat.title}</h3>
+                  <p className="text-2xl font-bold text-gray-800 mt-1">
+                    {stat.value}
+                  </p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      stat.subtitle.startsWith("+")
+                        ? "text-blue-600"
+                        : stat.subtitle.includes("Requieren")
+                        ? "text-gray-500"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {stat.subtitle}
+                  </p>
+                </div>
+                <div>{stat.icon}</div>
+              </div>
+            ))}
           </div>
         </div>
 

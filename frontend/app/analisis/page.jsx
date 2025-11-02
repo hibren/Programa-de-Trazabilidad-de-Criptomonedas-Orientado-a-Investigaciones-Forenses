@@ -1,7 +1,6 @@
-import AnalisisContent from "../../src/components/organisms/AnalisisContent"
+import { redirect } from "next/navigation"
 
 export default function AnalisisPage() {
-  return (
-      <AnalisisContent />
-  )
+  // Redirige automáticamente a la pestaña principal (Trazabilidad)
+  redirect("/analisis/trazabilidad")
 }
