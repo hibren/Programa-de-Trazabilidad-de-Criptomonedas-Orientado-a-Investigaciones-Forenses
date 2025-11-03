@@ -4,7 +4,7 @@ import { Search, TrendingUp, Network, Clock } from "lucide-react"
 import { useState } from "react"
 import ModalDetalleTraza from "@/components/molecules/ModalDetalleTraza"
 
-// ========== COMPONENTE MODAL ==========
+// ======================= MODAL DE RESULTADOS =======================
 const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
   if (!isOpen) return null
   return (
@@ -16,7 +16,7 @@ const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
   )
 }
 
-// ========== COMPONENTE PRINCIPAL ==========
+// ======================= COMPONENTE PRINCIPAL =======================
 const AnalisisForenseTools = () => {
   const [form, setForm] = useState({
     origen: "",
@@ -36,58 +36,64 @@ const AnalisisForenseTools = () => {
     setForm({ ...form, [name]: value })
   }
 
-  // 👇 FUNCIÓN QUE CONSULTA TU API REAL DE FASTAPI
+  // ======================= FUNCIÓN PRINCIPAL =======================
   const handleAction = async (accion) => {
     if (accion === "Rastreo de Origen") {
       try {
         setLoading(true)
+        const direccion = form.destino
+        const profundidad = form.profundidad || 3
 
-        // 🔹 Llamamos al endpoint real
-        const response = await fetch("http://localhost:8000/trazabilidad/trazas")
-        if (!response.ok) throw new Error(`Error HTTP ${response.status}`)
-
-        const data = await response.json()
-
-        if (!data?.trazas || data.trazas.length === 0) {
-          alert("⚠️ No se encontraron trazas en la respuesta.")
+        if (!direccion) {
+          alert("⚠️ Ingrese una dirección para rastrear.")
+          setLoading(false)
           return
         }
 
-        // 🔹 Buscamos la traza que contenga la dirección buscada en origen o destino
-        const trazaEncontrada = data.trazas.find(
-          (t) =>
-            t.origen?.includes(form.destino) ||
-            t.destino?.includes(form.destino)
-        )
+        // 🔹 Endpoint real del backend
+        const url = `http://localhost:8000/rastreo/origen?direccion=${direccion}&profundidad=${profundidad}`
+        console.log("🌐 Solicitando:", url)
 
-        // Si no la encuentra, usa la primera como fallback
-        const traza = trazaEncontrada || data.trazas[0]
+        // ✅ CORREGIDO: método POST
+        const response = await fetch(url, { method: "POST" })
+        if (!response.ok) throw new Error(`Error HTTP ${response.status}`)
 
-        // 🔹 Normalizamos para que coincida con ModalDetalleTraza
-        const trazaFormateada = {
-          direccion: traza.origen?.[0] || "Desconocido",
-          perfil_riesgo: traza.perfil_riesgo || "desconocido",
-          actividad: traza.estado || "sin estado",
-          cantidad_reportes: traza.reportes_totales || 0,
-          total_recibido: (traza.monto_total || 0) * 100000000,
-          total_enviado: 0,
-          final_balance: (traza.monto_total || 0) * 100000000,
-          n_tx: data.cantidad || 0,
-          primer_tx: traza.bloque?.fecha || "",
-          ultima_tx: traza.bloque?.fecha || "",
-          categorias: traza.categorias_denuncia || [],
-          ultimo_update_riesgo: traza.ultimo_update_riesgo || "N/A",
-          ponderaciones: {
-            reportes: traza.reportes_totales || 0,
-            categorias: traza.categorias_denuncia?.length || 0,
-            actividad: traza.patrones_sospechosos?.length || 0,
-            total:
-              (traza.reportes_totales || 0) +
-              (traza.categorias_denuncia?.length || 0) +
-              (traza.patrones_sospechosos?.length || 0),
-          },
+        const data = await response.json()
+        console.log("✅ Datos recibidos:", data)
+
+        if (!data || !data.direccion_inicial) {
+          alert("⚠️ No se encontraron resultados para la dirección ingresada.")
+          return
         }
-        console.log("🧩 Data recibida en modal:", data)
+
+        // 🔧 CORREGIDO — garantiza que la lista de conexiones exista
+        const conexiones = Array.isArray(data.resultado) ? data.resultado : []
+        if (conexiones.length === 0) {
+          console.warn("⚠️ No se encontraron conexiones en data.resultado:", data)
+          alert("ℹ️ No se encontraron transacciones vinculadas a esa dirección.")
+        } else {
+          console.log(`✅ ${conexiones.length} conexión(es) encontradas.`)
+        }
+
+        // 🔹 Estructura formateada para el modal
+        const trazaFormateada = {
+          direccion: data.direccion_inicial,
+          perfil_riesgo: "N/A",
+          actividad: data.tipo,
+          cantidad_reportes: data.total_conexiones,
+          categorias: [],
+          total_recibido: 0,
+          total_enviado: 0,
+          final_balance: 0,
+          n_tx: conexiones.length,
+          primer_tx: conexiones[0]?.fecha || "N/A",
+          ultima_tx: conexiones.at(-1)?.fecha || "N/A",
+          ultimo_update_riesgo: data.fecha_analisis,
+          ponderaciones: {
+            total: data.total_conexiones,
+          },
+          conexiones, // 👈 lista de enlaces rastreados
+        }
 
         setResultadoRastreo(trazaFormateada)
         setIsModalOpen(true)
@@ -102,9 +108,10 @@ const AnalisisForenseTools = () => {
     }
   }
 
+  // ======================= UI =======================
   return (
     <>
-      {/* 👇 MODAL REAL */}
+      {/* MODAL DE RESULTADOS */}
       <ResultadoRastreoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -121,9 +128,9 @@ const AnalisisForenseTools = () => {
           </p>
         </div>
 
-        {/* Contenedor en cuadrícula */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 🔹 Rastreo de Origen */}
+
+          {/* ==================== Rastreo de Origen ==================== */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3">
               <Search className="h-5 w-5 text-green-700" />
@@ -170,9 +177,15 @@ const AnalisisForenseTools = () => {
               <Search className="h-4 w-4" />
               {loading ? "Cargando..." : "Iniciar Rastreo"}
             </button>
+
+            {resultadoRastreo && (
+              <p className="text-sm text-gray-600 mt-3">
+                🔍 Conexiones encontradas: {resultadoRastreo?.conexiones?.length || 0}
+              </p>
+            )}
           </div>
 
-          {/* 🔹 Análisis de Destino */}
+          {/* ==================== Análisis de Destino ==================== */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-5 w-5 text-green-700" />
@@ -216,7 +229,7 @@ const AnalisisForenseTools = () => {
             </button>
           </div>
 
-          {/* 🔹 Detección de Clusters */}
+          {/* ==================== Detección de Clusters ==================== */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3">
               <Network className="h-5 w-5 text-green-700" />
@@ -257,7 +270,7 @@ const AnalisisForenseTools = () => {
             </button>
           </div>
 
-          {/* 🔹 Análisis Temporal */}
+          {/* ==================== Análisis Temporal ==================== */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="h-5 w-5 text-green-700" />

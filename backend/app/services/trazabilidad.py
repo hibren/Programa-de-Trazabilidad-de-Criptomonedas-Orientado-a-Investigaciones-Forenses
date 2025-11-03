@@ -95,54 +95,85 @@ async def obtener_todas_las_trazas():
         "trazas": trazas
     }
 
-async def obtener_trazas_por_direccion(direccion_str: str, saltos: int = 3):
-    # 1️⃣ Buscar dirección
+from app.services.transaccion import fetch_and_save_transactions_by_address
+from app.services.reporte import fetch_reportes_by_address
+from app.database import direccion_collection, transaccion_collection, bloque_collection, reporte_collection
+from app.models.transaccion import TransaccionModel
+from app.schemas.bloque import BloqueResponseSchema
+from app.database import PyObjectId
+from datetime import datetime
+
+async def obtener_trazas_por_direccion(direccion_str: str, saltos: int = 3, limit: int = 20):
+    """
+    Obtiene o actualiza las trazas de una dirección específica:
+    1️⃣ Consulta o crea la dirección en la BD.
+    2️⃣ Llama a la API externa (BlockCypher) si no existen transacciones locales.
+    3️⃣ Devuelve un resumen de trazas con bloque y reportes asociados.
+    """
+
+    # 1️⃣ Buscar la dirección en la BD
     direccion_doc = await direccion_collection.find_one({"direccion": direccion_str})
     if not direccion_doc:
         return {"error": f"No se encontró la dirección {direccion_str}"}
-    direccion_doc["_id"] = str(direccion_doc["_id"])
 
-    # 2️⃣ Obtener reportes de Chainabuse (desde BD o API)
-    reportes = await fetch_reportes_by_address(direccion_str)
-    categorias_chainabuse = list({r.scamCategory.upper() for r in reportes})
-    dominios = list({d for r in reportes for d in getattr(r, "domains", [])})
-    cantidad_reportes = len(reportes)
-    reportes_verificados = len([r for r in reportes if r.trusted])
-    reportes_no_verificados = cantidad_reportes - reportes_verificados
+    direccion_id = direccion_doc["_id"]
+    direccion_doc["_id"] = str(direccion_id)
 
-    # 3️⃣ Buscar transacciones
+    # 2️⃣ Intentar traer transacciones desde la API externa (limitado)
+    try:
+        print(f"🌐 Buscando nuevas transacciones para {direccion_str}")
+        await fetch_and_save_transactions_by_address(direccion_str)
+    except Exception as e:
+        print(f"⚠️ Error al actualizar transacciones: {e}")
+
+    # 3️⃣ Buscar transacciones locales relacionadas
     transacciones = await transaccion_collection.find({
         "$or": [
-            {"inputs": direccion_str},
-            {"outputs": direccion_str}
+            {"inputs": direccion_id},
+            {"outputs": direccion_id}
         ]
-    }).to_list(200)
+    }).sort("fecha", -1).limit(limit).to_list(limit)
 
+    # 4️⃣ Obtener reportes ChainAbuse
+    try:
+        reportes = await fetch_reportes_by_address(direccion_str)
+    except Exception as e:
+        print(f"⚠️ Error al obtener reportes para {direccion_str}: {e}")
+        reportes = await reporte_collection.find({"id_direccion": direccion_str}).to_list(50)
+
+    categorias_chainabuse = list({r.scamCategory.upper() for r in reportes if hasattr(r, "scamCategory")})
+    dominios = list({d for r in reportes for d in getattr(r, "domains", []) if d})
+    cantidad_reportes = len(reportes)
+    reportes_verificados = len([r for r in reportes if getattr(r, "trusted", False)])
+    reportes_no_verificados = cantidad_reportes - reportes_verificados
+
+    # 5️⃣ Armar trazas
     trazas = []
     for tx in transacciones:
-        bloque_doc = await bloque_collection.find_one({"_id": tx.get("bloque")})
-        if bloque_doc:
-            bloque_doc["_id"] = str(bloque_doc["_id"])
-            bloque_info = {
-                "id": bloque_doc["_id"],
-                "numero_bloque": bloque_doc["numero_bloque"],
-                "hash": bloque_doc["hash"],
-                "fecha": bloque_doc["fecha"].isoformat() if bloque_doc["fecha"] else None,
-                "recompensa_total": bloque_doc["recompensa_total"],
-                "volumen_total": bloque_doc["volumen_total"]
-            }
-        else:
-            bloque_info = None
+        bloque_info = None
+        bloque_ref = tx.get("bloque")
+
+        if bloque_ref and PyObjectId.is_valid(bloque_ref):
+            bloque_doc = await bloque_collection.find_one({"_id": PyObjectId(bloque_ref)})
+            if bloque_doc:
+                bloque_info = {
+                    "id": str(bloque_doc["_id"]),
+                    "numero_bloque": bloque_doc.get("numero_bloque"),
+                    "hash": bloque_doc.get("hash"),
+                    "fecha": bloque_doc.get("fecha").isoformat() if bloque_doc.get("fecha") else None,
+                    "recompensa_total": bloque_doc.get("recompensa_total"),
+                    "volumen_total": bloque_doc.get("volumen_total"),
+                }
 
         trazas.append({
-            "hash": tx["hash"],
-            "monto_total": tx["monto_total"],
-            "estado": tx["estado"],
+            "hash": tx.get("hash"),
+            "monto_total": tx.get("monto_total"),
+            "estado": tx.get("estado", "desconocido"),
+            "bloque": bloque_info,
             "categorias_denuncia": categorias_chainabuse,
-            "bloque": bloque_info
         })
 
-    # 4️⃣ Armar respuesta final
+    # 6️⃣ Respuesta final estructurada
     return {
         "direccion": direccion_str,
         "perfil_riesgo": direccion_doc.get("perfil_riesgo", "desconocido"),
@@ -154,5 +185,6 @@ async def obtener_trazas_por_direccion(direccion_str: str, saltos: int = 3):
         "reportes_verificados": reportes_verificados,
         "reportes_no_verificados": reportes_no_verificados,
         "dominios_asociados": dominios,
-        "trazas": trazas
+        "trazas": trazas,
+        "ultima_actualizacion": datetime.utcnow().isoformat(),
     }
