@@ -20,6 +20,7 @@ class TrazaItem(BaseModel):
 
     # --- nuevos campos forenses ---
     perfil_riesgo: Optional[str] = None
+    ultimo_update_riesgo: Optional[str] = None 
     reportes_totales: Optional[int] = 0
     reportes_verificados: Optional[int] = 0
     reportes_no_verificados: Optional[int] = 0
