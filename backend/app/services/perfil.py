@@ -21,6 +21,8 @@ async def get_all_perfiles() -> List[Perfil]:
     """
     perfiles = []
     async for perfil in perfiles_collection.find():
+        # Convertir ObjectId a string para consistencia en la API
+        perfil["_id"] = str(perfil["_id"])
         perfiles.append(Perfil(**perfil))
     return perfiles
 

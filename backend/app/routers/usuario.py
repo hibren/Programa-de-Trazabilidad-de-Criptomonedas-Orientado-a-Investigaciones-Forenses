@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List
-from app.schemas.usuario import Token, UsuarioCreate, LoginRequest, UsuarioResponseSchema, UsuarioUpdatePerfilSchema, UsuarioUpdate
+from app.schemas.usuario import Token, UsuarioCreate, LoginRequest, UsuarioResponseSchema, UsuarioUpdatePerfilSchema, UsuarioUpdate, ForgotPasswordRequest, ResetPasswordRequest
 from app.services import usuario as user_service
 from app.models.usuario import Usuario
 from app.models.perfil import Perfil
@@ -86,3 +86,19 @@ async def toggle_active(user_id: str):
     if not updated_user:
         raise HTTPException(status_code=404, detail="No se pudo cambiar el estado del usuario.")
     return updated_user
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(request: ForgotPasswordRequest):
+    """
+    Inicia el proceso de recuperación de contraseña.
+    """
+    await user_service.request_password_reset(request.email)
+    return {"message": "Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña."}
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(request: ResetPasswordRequest):
+    """
+    Restablece la contraseña utilizando un token.
+    """
+    await user_service.reset_password(request)
+    return {"message": "Tu contraseña ha sido restablecida exitosamente."}

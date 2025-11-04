@@ -70,3 +70,10 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     username: str # Changed from email to username to match login logic
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

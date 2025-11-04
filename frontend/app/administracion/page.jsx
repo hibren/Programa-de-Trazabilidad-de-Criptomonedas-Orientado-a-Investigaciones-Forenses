@@ -303,27 +303,24 @@ const PerfilesContent = () => {
 
 // --- Sub-component for User Form ---
 const UsuarioForm = ({ usuario: existingUsuario, perfiles, onSave, onCancel }) => {
-    const [formData, setFormData] = useState({
-        username: '',
-        password: '',
-        perfil: '',
-        datos_personales: { nombre: '', apellido: '', cuit: '', fecha_nacimiento: '' },
-        contactos: [{ tipo: 'Email', valor: '' }],
-        domicilios: [{ tipo: 'Legal', pais: 'Argentina', provincia: '', ciudad: '', calle: '' }]
-    });
-
-    useEffect(() => {
+    // Inicializa el estado directamente basado en si `existingUsuario` existe.
+    // Esto es más robusto que usar un useEffect para poblar el formulario.
+    const getInitialFormData = () => {
         if (existingUsuario) {
-            setFormData({
-                username: existingUsuario.username,
-                password: '', // Password is not edited
-                perfil: existingUsuario.perfil,
-                datos_personales: { ...existingUsuario.datos_personales, fecha_nacimiento: existingUsuario.datos_personales.fecha_nacimiento.split('T')[0] },
-                contactos: existingUsuario.contactos,
-                domicilios: existingUsuario.domicilios,
-            });
+            return {
+                username: existingUsuario.username || '',
+                password: '', // El password nunca se precarga
+                perfil: existingUsuario.perfil || '', // El ID del perfil ya viene normalizado
+                datos_personales: { ...existingUsuario.datos_personales, fecha_nacimiento: (existingUsuario.datos_personales?.fecha_nacimiento || '').split('T')[0] },
+                contactos: existingUsuario.contactos || [{ tipo: 'Email', valor: '' }],
+                domicilios: existingUsuario.domicilios || [{ tipo: 'Legal', pais: 'Argentina', provincia: '', ciudad: '', calle: '' }],
+            };
         }
-    }, [existingUsuario]);
+        // Estado inicial para un nuevo usuario
+        return { username: '', password: '', perfil: '', datos_personales: { nombre: '', apellido: '', cuit: '', fecha_nacimiento: '' }, contactos: [{ tipo: 'Email', valor: '' }], domicilios: [{ tipo: 'Legal', pais: 'Argentina', provincia: '', ciudad: '', calle: '' }] };
+    };
+
+    const [formData, setFormData] = useState(getInitialFormData);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -434,12 +431,20 @@ const GestionUsuariosContent = () => {
       if (!perfilesRes.ok) throw new Error('No se pudieron obtener los perfiles.');
       const usersData = await usersRes.json();
       const perfilesData = await perfilesRes.json(); // Array de perfiles
+      const normalizedPerfiles = perfilesData.map(p => ({ ...p, _id: p._id.$oid || p._id }));
+      
       const usersWithProfileNames = usersData.map(user => {
-        const perfil = perfilesData.find(p => p._id === user.perfil);
-        return { ...user, perfilNombre: perfil ? perfil.nombre : 'Sin perfil' };
+        const userPerfilId = typeof user.perfil === 'object' && user.perfil !== null ? user.perfil.$oid : user.perfil;
+        const perfil = normalizedPerfiles.find(p => p._id === userPerfilId);
+        return { 
+          ...user,
+          _id: user._id.$oid || user._id, // Normalizar el ID del usuario también
+          perfil: userPerfilId, // Usar el ID del perfil ya normalizado
+          perfilNombre: perfil ? perfil.nombre : 'Sin perfil' 
+        };
       });
       setUsers(usersWithProfileNames);
-      setPerfiles(perfilesData.map(p => ({ ...p, _id: p._id.$oid || p._id })));
+      setPerfiles(normalizedPerfiles);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -520,7 +525,14 @@ const GestionUsuariosContent = () => {
                 <DialogHeader>
                     <DialogTitle>{editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}</DialogTitle>
                 </DialogHeader>
-                <UsuarioForm usuario={editingUser} perfiles={perfiles} onSave={handleSave} onCancel={() => setIsDialogOpen(false)} />
+                {isDialogOpen && (
+                    <UsuarioForm 
+                        key={editingUser ? editingUser._id : 'new-user'} 
+                        usuario={editingUser} 
+                        perfiles={perfiles} 
+                        onSave={handleSave} 
+                        onCancel={() => setIsDialogOpen(false)} />
+                )}
             </DialogContent>
         </Dialog>
         <ConfirmationDialog

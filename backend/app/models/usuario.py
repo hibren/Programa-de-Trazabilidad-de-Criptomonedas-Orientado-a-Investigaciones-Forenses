@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 from app.database import PyObjectId
 
 class DatosPersonales(BaseModel):
@@ -29,6 +29,8 @@ class Usuario(BaseModel):
     datos_personales: DatosPersonales
     contactos: List[Contacto]
     domicilios: List[Domicilio]
+    reset_password_token: Optional[str] = None
+    reset_password_token_expiration: Optional[datetime] = None
 
     class Config:
         populate_by_name = True

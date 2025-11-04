@@ -1,3 +1,4 @@
+import secrets
 from fastapi import HTTPException, status
 from datetime import datetime, date, timedelta
 from bson import ObjectId
@@ -5,8 +6,9 @@ from typing import List, Optional
 
 from app.database import db
 from app.models.usuario import Usuario
-from app.schemas.usuario import UsuarioCreate, LoginRequest, Token, UsuarioUpdatePerfilSchema
+from app.schemas.usuario import UsuarioCreate, LoginRequest, Token, UsuarioUpdatePerfilSchema, ResetPasswordRequest
 from app.security import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_user
+from app.email import send_email
 
 async def create_user(user: UsuarioCreate):
     # Check if username already exists
@@ -138,3 +140,69 @@ async def toggle_user_active_status(user_id: str) -> Optional[Usuario]:
         return Usuario(**updated_user)
 
     return Usuario(**user)
+
+async def request_password_reset(email: str):
+    user_data = await db.usuarios.find_one({"username": email})
+    if not user_data:
+        # No revelamos si el usuario existe o no por seguridad
+        return
+
+    user = Usuario(**user_data)
+
+    # Generar token
+    token = secrets.token_urlsafe(32)
+    expiration = datetime.utcnow() + timedelta(minutes=15)
+
+    await db.usuarios.update_one(
+        {"_id": user.id},
+        {"$set": {"reset_password_token": token, "reset_password_token_expiration": expiration}}
+    )
+
+    # Enviar correo
+    reset_link = f"http://localhost:3000/reset-password?token={token}"
+    html_content = f"""
+    <html>
+        <body>
+            <div style="font-family: Arial, sans-serif; text-align: center; color: #333;">
+                <img src="https://i.imgur.com/O1hS52I.png" alt="BlockAnalyzer Logo" style="width: 150px; margin-bottom: 20px;">
+                <h2>Recuperación de Contraseña</h2>
+                <p>Hola {user.datos_personales.nombre} {user.datos_personales.apellido},</p>
+                <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.</p>
+                <p>Haz clic en el siguiente enlace para continuar:</p>
+                <a href="{reset_link}" style="background-color: #166534; color: white; padding: 15px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
+                    Restablecer Contraseña
+                </a>
+                <p style="margin-top: 20px;">Si no solicitaste esto, puedes ignorar este correo de forma segura.</p>
+                <p style="font-size: 0.8em; color: #777;">Este enlace expirará en 15 minutos.</p>
+            </div>
+        </body>
+    </html>
+    """
+    await send_email(
+        to_email=user.username,
+        subject="Restablece tu contraseña de BlockAnalyzer",
+        html_content=html_content
+    )
+
+async def reset_password(request: ResetPasswordRequest):
+    user_data = await db.usuarios.find_one({
+        "reset_password_token": request.token,
+        "reset_password_token_expiration": {"$gt": datetime.utcnow()}
+    })
+
+    if not user_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El token es inválido o ha expirado."
+        )
+
+    user = Usuario(**user_data)
+    hashed_password = get_password_hash(request.new_password)
+
+    await db.usuarios.update_one(
+        {"_id": user.id},
+        {
+            "$set": {"password": hashed_password},
+            "$unset": {"reset_password_token": "", "reset_password_token_expiration": ""}
+        }
+    )
