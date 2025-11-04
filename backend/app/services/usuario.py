@@ -164,7 +164,7 @@ async def request_password_reset(email: str):
     <html>
         <body>
             <div style="font-family: Arial, sans-serif; text-align: center; color: #333;">
-                <img src="https://i.imgur.com/O1hS52I.png" alt="BlockAnalyzer Logo" style="width: 150px; margin-bottom: 20px;">
+                <img src="https://i.imgur.com/a/IVW5LwH.jpg" alt="BlockAnalyzer Logo" style="width: 150px; margin-bottom: 20px;">
                 <h2>Recuperación de Contraseña</h2>
                 <p>Hola {user.datos_personales.nombre} {user.datos_personales.apellido},</p>
                 <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.</p>
