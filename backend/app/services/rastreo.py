@@ -1,121 +1,227 @@
 from datetime import datetime, timedelta, timezone
-from app.database import rastreo_collection
+from app.database import rastreo_collection, transaccion_collection, direccion_collection
 from app.services.transaccion import (
     fetch_and_save_transactions_by_address,
     get_all_transacciones,
 )
 from app.models.transaccion import TransaccionModel
+from app.models.rastreo import RastreoModel, Conexion
+from app.database import PyObjectId
+import asyncio
+
+# ================================================================
+# 🔹 HELPER: Convertir ObjectId a dirección Bitcoin
+# ================================================================
+async def _resolve_direccion(obj_id) -> str:
+    """Convierte un ObjectId de dirección a su address Bitcoin"""
+    if isinstance(obj_id, str):
+        if len(obj_id) > 26:  # Ya es una dirección Bitcoin
+            return obj_id
+        obj_id = PyObjectId(obj_id)
+    
+    doc = await direccion_collection.find_one({"_id": obj_id})
+    return doc["address"] if doc else str(obj_id)
 
 
 # ================================================================
-# 🔹 RASTREO DE ORIGEN — Solo direcciones conectadas al inicial
+# 🔹 RASTREO DE ORIGEN — Hacia atrás en la cadena (CORREGIDO)
 # ================================================================
 async def rastrear_origen(direccion_inicial: str, profundidad: int = 3):
     """
     Rastrear únicamente el origen de fondos que llegan a la dirección_inicial.
-    No sigue transacciones aleatorias ni expande fuera de la red que involucra directamente a la dirección analizada.
+    Solo sigue transacciones donde la dirección aparece en OUTPUTS (recibiendo fondos).
     """
     print(f"\n🚀 [RASTREO DE ORIGEN] {direccion_inicial} | profundidad={profundidad}")
 
+    # Verificar si ya existe el rastreo guardado
     existente = await rastreo_collection.find_one({
         "direccion_inicial": direccion_inicial,
         "tipo": "origen"
     })
     if existente:
-        existente["_id"] = str(existente["_id"])
+        existente["id"] = str(existente.get("_id", ""))
+        existente.pop("_id", None)
         for r in existente.get("resultado", []):
             if isinstance(r.get("fecha"), datetime):
                 r["fecha"] = r["fecha"].isoformat()
         print("📂 Rastreo existente → devolviendo desde Mongo")
         return existente
 
-    await fetch_and_save_transactions_by_address(direccion_inicial)
-    txs = await get_all_transacciones()
+    # 🔹 Obtener las transacciones de la dirección inicial desde BlockCypher
+    print(f"🌐 Consultando BlockCypher para {direccion_inicial[:8]}...")
+    try:
+        await fetch_and_save_transactions_by_address(direccion_inicial)
+    except Exception as e:
+        print(f"⚠️ Error al consultar BlockCypher: {e}")
+        # Si falla BlockCypher, intentamos con datos locales
+        pass
 
     resultados = []
-    conexiones_validas = set([direccion_inicial])
-    nuevas_conexiones = set()
+    direcciones_procesadas = set()
+    direcciones_a_procesar = {direccion_inicial}
 
     for nivel in range(profundidad):
-        print(f"🔹 Nivel {nivel+1}")
+        print(f"🔹 Nivel {nivel + 1} - Procesando {len(direcciones_a_procesar)} direcciones")
+        nuevas_direcciones = set()
 
-        for tx in txs:
-            try:
-                if isinstance(tx, dict):
-                    tx = TransaccionModel(**tx)
-
-                inputs = tx.inputs or []
-                outputs = tx.outputs or []
-
-                # ✅ Solo consideramos transacciones que involucren la dirección inicial o sus fuentes directas
-                if any(dest in conexiones_validas for dest in outputs):
-                    # Evitar transacciones donde la dirección inicial actúe como emisora
-                    if direccion_inicial in inputs:
-                        continue
-
-                    destino = [out for out in outputs if out in conexiones_validas][0]
-                    for entrada in inputs:
-                        if entrada == destino:
-                            continue
-                        resultados.append({
-                            "nivel": nivel + 1,
-                            "desde": entrada,
-                            "hacia": destino,
-                            "monto": tx.monto_total or 0,
-                            "hash": tx.hash,
-                            "estado": tx.estado or "desconocido",
-                            "fecha": (tx.fecha or datetime.now(timezone.utc)).isoformat(),
-                        })
-                        nuevas_conexiones.add(entrada)
-
-            except Exception as e:
-                print(f"⚠️ Error procesando {getattr(tx, 'hash', 'sin-hash')}: {e}")
+        for direccion_actual in direcciones_a_procesar:
+            if direccion_actual in direcciones_procesadas:
                 continue
 
-        # Solo seguir rastreando si los nuevos “desde” también tienen vínculo con la inicial
-        if not nuevas_conexiones:
+            # 🔹 PASO 1: Obtener el ObjectId de la dirección actual
+            direccion_doc = await direccion_collection.find_one({"address": direccion_actual})
+            if not direccion_doc:
+                print(f"⚠️ Dirección {direccion_actual[:8]}... no encontrada en DB local")
+                direcciones_procesadas.add(direccion_actual)
+                continue
+            
+            direccion_obj_id = direccion_doc["_id"]
+            print(f"   🔍 Buscando transacciones donde {direccion_actual[:8]}... esté en OUTPUTS")
+
+            # 🔹 PASO 2: Buscar transacciones donde esta dirección RECIBIÓ fondos
+            # Usamos $elemMatch o $in para buscar dentro del array
+            cursor = transaccion_collection.find(
+                {"outputs": direccion_obj_id}  # Busca el ObjectId dentro del array
+            ).limit(10)
+            
+            txs_recibidas = await cursor.to_list(length=None)
+            print(f"   📥 {direccion_actual[:8]}... recibió {len(txs_recibidas)} transacciones")
+
+            for tx_doc in txs_recibidas:
+                try:
+                    tx = TransaccionModel(**tx_doc)
+                    
+                    # 🔹 PASO 3: Resolver ObjectIds a direcciones Bitcoin reales
+                    input_addresses = []
+                    for input_id in (tx.inputs or [])[:5]:  # Limitar a 5
+                        addr = await _resolve_direccion(input_id)
+                        if addr:
+                            input_addresses.append(addr)
+                    
+                    output_addresses = []
+                    for output_id in (tx.outputs or [])[:5]:
+                        addr = await _resolve_direccion(output_id)
+                        if addr:
+                            output_addresses.append(addr)
+
+                    # Verificar que la dirección actual está en outputs
+                    if direccion_actual not in output_addresses:
+                        print(f"   ⚠️ TX {tx.hash[:8]}... no tiene a {direccion_actual[:8]} en outputs")
+                        continue
+                    
+                    # No rastrear si es una autotransferencia
+                    if direccion_inicial in input_addresses:
+                        print(f"   ⏭️ TX {tx.hash[:8]}... es autotransferencia, ignorando")
+                        continue
+
+                    # Evitar duplicados
+                    existe = any(
+                        r["hacia"] == direccion_actual and r["hash"] == tx.hash
+                        for r in resultados
+                    )
+                    if existe:
+                        continue
+
+                    # 🔹 PASO 4: Guardar resultado con información clara
+                    resultados.append({
+                        "nivel": nivel + 1,
+                        "desde": input_addresses[0] if len(input_addresses) == 1 
+                                else f"{len(input_addresses)} direcciones",
+                        "hacia": direccion_actual,
+                        "monto": tx.monto_total or 0,
+                        "hash": tx.hash,
+                        "estado": tx.estado or "desconocido",
+                        "fecha": (tx.fecha or datetime.now(timezone.utc)).isoformat(),
+                    })
+
+                    print(
+                        f"   ✅ {direccion_actual[:8]}... recibió {tx.monto_total:.8f} BTC "
+                        f"de {len(input_addresses)} dirección(es)"
+                    )
+
+                    # 🔹 PASO 5: Agregar direcciones de origen para siguiente nivel
+                    for input_addr in input_addresses:
+                        if (input_addr not in direcciones_procesadas 
+                            and input_addr != direccion_inicial
+                            and input_addr != direccion_actual):
+                            nuevas_direcciones.add(input_addr)
+
+                except Exception as e:
+                    print(f"⚠️ Error procesando {tx_doc.get('hash', 'sin-hash')}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+
+            direcciones_procesadas.add(direccion_actual)
+
+        if not nuevas_direcciones:
+            print(f"✅ Nivel {nivel + 1}: No hay más orígenes por rastrear")
             break
 
-        conexiones_validas |= nuevas_conexiones
-        nuevas_conexiones.clear()
+        print(f"🔄 Nivel {nivel + 1}: Encontradas {len(nuevas_direcciones)} nuevas direcciones")
 
-        for nueva_dir in conexiones_validas - {direccion_inicial}:
-            await fetch_and_save_transactions_by_address(nueva_dir)
+        # 🔹 PASO 6: Consultar nuevas direcciones en BlockCypher (con límite)
+        MAX_DIRECCIONES_POR_NIVEL = 3  # Reducido para evitar rate limits
+        for i, nueva_dir in enumerate(list(nuevas_direcciones)[:MAX_DIRECCIONES_POR_NIVEL]):
+            print(f"   🌐 [{i+1}/{MAX_DIRECCIONES_POR_NIVEL}] consultando {nueva_dir[:8]}...")
+            try:
+                await fetch_and_save_transactions_by_address(nueva_dir)
+                await asyncio.sleep(2)  # Delay para evitar rate limits
+            except Exception as e:
+                print(f"⚠️ Error al consultar {nueva_dir[:8]}...: {e}")
+                # No fallar todo el proceso por un error
+                continue
 
-    doc = {
-        "direccion_inicial": direccion_inicial,
-        "tipo": "origen",
-        "resultado": resultados,
-        "total_conexiones": len(resultados),
-        "fecha_analisis": datetime.now(timezone.utc).isoformat(),
-    }
+        direcciones_a_procesar = nuevas_direcciones
 
+    # ===============================================================
+    # 📦 Construcción y guardado del modelo Rastreo
+    # ===============================================================
     if resultados:
-        await rastreo_collection.insert_one(doc)
-        print(f"💾 Rastreo ORIGEN guardado ({len(resultados)} conexiones)")
-    else:
-        print(f"⚠️ No se encontraron transacciones que lleguen a {direccion_inicial}")
-        doc["mensaje"] = f"No se encontraron transacciones entrantes hacia {direccion_inicial}."
+        conexiones = [Conexion(**r) for r in resultados]
+        rastreo = RastreoModel(
+            direccion_inicial=direccion_inicial,
+            tipo="origen",
+            resultado=conexiones,
+            total_conexiones=len(conexiones),
+            fecha_analisis=datetime.now(timezone.utc),
+        )
 
-    # Convertir fechas a texto
-    for r in doc.get("resultado", []):
-        if isinstance(r.get("fecha"), datetime):
-            r["fecha"] = r["fecha"].isoformat()
+        try:
+            insert_result = await rastreo_collection.insert_one(rastreo.model_dump(by_alias=True))
+            rastreo.id = str(insert_result.inserted_id)
+        except Exception as e:
+            import traceback
+            print("⚠️ Error al guardar rastreo en Mongo:", e)
+            traceback.print_exc()
+            raise
 
-    return doc
+        print(f"💾 Rastreo ORIGEN guardado ({len(conexiones)} conexiones)")
+        return rastreo.model_dump(mode="json", by_alias=True)
+
+    # 🔸 Si no hay resultados, devolver modelo vacío válido
+    rastreo_vacio = RastreoModel(
+        id=None,
+        direccion_inicial=direccion_inicial,
+        tipo="origen",
+        resultado=[],
+        total_conexiones=0,
+        fecha_analisis=datetime.now(timezone.utc)
+    )
+
+    print(f"⚠️ No se encontraron transacciones que lleguen a {direccion_inicial}")
+    return rastreo_vacio.model_dump(mode="json", by_alias=True)
 
 
 # ================================================================
-# 🔹 RASTREO DE DESTINO — Hacia adelante en la cadena
+# 🔹 RASTREO DE DESTINO — Hacia adelante en la cadena (CORREGIDO)
 # ================================================================
 async def rastrear_destino(direccion_inicial: str, dias: int = 7):
     """
-    Rastrear hacia dónde se dirigen los fondos desde una dirección origen,
-    considerando solo las transacciones dentro de los últimos N días.
+    Rastrear hacia dónde se dirigen los fondos desde una dirección origen.
     """
     print(f"\n🚀 [RASTREO DE DESTINO] {direccion_inicial} | últimos {dias} días")
 
-    # 1️⃣ Revisar si ya existe
     existente = await rastreo_collection.find_one({
         "direccion_inicial": direccion_inicial,
         "tipo": "destino",
@@ -130,80 +236,82 @@ async def rastrear_destino(direccion_inicial: str, dias: int = 7):
                     r["fecha"] = r["fecha"].isoformat()
         return existente
 
-    # 2️⃣ Obtener y filtrar transacciones recientes
-    await fetch_and_save_transactions_by_address(direccion_inicial)
-    txs = await get_all_transacciones()
+    # Obtener transacciones de BlockCypher
+    try:
+        await fetch_and_save_transactions_by_address(direccion_inicial)
+    except Exception as e:
+        print(f"⚠️ Error al consultar BlockCypher: {e}")
 
+    # Obtener el ObjectId de la dirección inicial
+    direccion_doc = await direccion_collection.find_one({"address": direccion_inicial})
+    if not direccion_doc:
+        print(f"⚠️ Dirección no encontrada: {direccion_inicial}")
+        return {
+            "direccion_inicial": direccion_inicial,
+            "tipo": "destino",
+            "mensaje": "Dirección no encontrada en la base de datos",
+            "resultado": [],
+            "total_conexiones": 0,
+            "fecha_analisis": datetime.now(timezone.utc).isoformat(),
+        }
+    
+    direccion_obj_id = direccion_doc["_id"]
     fecha_limite = datetime.now(timezone.utc) - timedelta(days=dias)
-    txs_filtradas = []
-    for t in txs:
-        fecha_tx = getattr(t, "fecha", None)
-        if not fecha_tx:
-            continue
-        if fecha_tx.tzinfo is None:
-            fecha_tx = fecha_tx.replace(tzinfo=timezone.utc)
-        if fecha_tx >= fecha_limite:
-            txs_filtradas.append(t)
-    txs = txs_filtradas
+
+    # Buscar transacciones donde la dirección ENVIÓ fondos
+    cursor = transaccion_collection.find({
+        "inputs": direccion_obj_id,
+        "fecha": {"$gte": fecha_limite}
+    }).limit(50)
+    
+    txs_enviadas = await cursor.to_list(length=None)
+    print(f"📤 {direccion_inicial[:8]}... envió {len(txs_enviadas)} transacciones")
 
     resultados = []
 
-    for tx in txs:
+    for tx_doc in txs_enviadas:
         try:
-            if isinstance(tx, dict):
-                tx = TransaccionModel(**tx)
-
-            inputs = tx.inputs or []
-            outputs = tx.outputs or []
-
-            # ✅ Si la dirección fue EMISORA (input)
-            if direccion_inicial in inputs:
-                for salida in outputs:
+            tx = TransaccionModel(**tx_doc)
+            
+            # Resolver direcciones de salida
+            for output_id in (tx.outputs or []):
+                output_addr = await _resolve_direccion(output_id)
+                if output_addr and output_addr != direccion_inicial:
                     resultados.append({
                         "nivel": 1,
                         "desde": direccion_inicial,
-                        "hacia": salida,
+                        "hacia": output_addr,
                         "monto": tx.monto_total or 0,
                         "hash": tx.hash,
                         "estado": tx.estado or "desconocido",
                         "fecha": (tx.fecha or datetime.now(timezone.utc)).isoformat(),
                     })
-
         except Exception as e:
-            print(f"⚠️ Error procesando {getattr(tx, 'hash', 'sin-hash')}: {e}")
+            print(f"⚠️ Error procesando {tx_doc.get('hash', 'sin-hash')}: {e}")
             continue
 
-    # 3️⃣ Documento final
-    doc = {
-        "direccion_inicial": direccion_inicial,
-        "tipo": "destino",
-        "dias": dias,
-        "resultado": resultados,
-        "total_conexiones": len(resultados),
-        "fecha_analisis": datetime.now(timezone.utc).isoformat(),
-    }
-
-    # 4️⃣ Guardar o devolver mensaje
     if resultados:
-        await rastreo_collection.insert_one(doc)
-        print(f"💾 Rastreo DESTINO guardado ({len(resultados)} conexiones)")
+        conexiones = [Conexion(**r) for r in resultados]
+        rastreo = RastreoModel(
+            direccion_inicial=direccion_inicial,
+            tipo="destino",
+            resultado=conexiones,
+            total_conexiones=len(conexiones),
+            fecha_analisis=datetime.now(timezone.utc),
+        )
+        await rastreo_collection.insert_one(rastreo.model_dump(by_alias=True))
+        print(f"💾 Rastreo DESTINO guardado ({len(conexiones)} conexiones)")
+        return rastreo.model_dump(mode="json", by_alias=True)
     else:
-        print(f"⚠️ No se encontraron transacciones salientes recientes para {direccion_inicial}")
+        print(f"⚠️ No se encontraron transacciones salientes")
         return {
             "direccion_inicial": direccion_inicial,
             "tipo": "destino",
-            "mensaje": f"No se encontraron transacciones salientes (destino) en los últimos {dias} días.",
+            "mensaje": f"No se encontraron transacciones salientes en los últimos {dias} días.",
             "resultado": [],
             "total_conexiones": 0,
             "fecha_analisis": datetime.now(timezone.utc).isoformat(),
         }
-
-    # 🔧 Convertir fechas
-    for r in doc.get("resultado", []):
-        if isinstance(r.get("fecha"), datetime):
-            r["fecha"] = r["fecha"].isoformat()
-
-    return doc
 
 
 # ================================================================
@@ -211,7 +319,6 @@ async def rastrear_destino(direccion_inicial: str, dias: int = 7):
 # ================================================================
 async def listar_rastreos():
     docs = await rastreo_collection.find().sort("fecha_analisis", -1).to_list(100)
-
     for d in docs:
         d["_id"] = str(d["_id"])
         if "resultado" in d:
@@ -220,5 +327,4 @@ async def listar_rastreos():
                     r["fecha"] = r["fecha"].isoformat()
         if isinstance(d.get("fecha_analisis"), datetime):
             d["fecha_analisis"] = d["fecha_analisis"].isoformat()
-
     return docs

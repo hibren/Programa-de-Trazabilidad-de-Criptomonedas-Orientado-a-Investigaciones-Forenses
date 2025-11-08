@@ -4,8 +4,8 @@ from app.schemas.bloque import BloqueResponseSchema
 from app.models.transaccion import TransaccionModel
 from typing import List, Optional
 from app.services.reporte import fetch_reportes_by_address  
-#from app.services.transaccion import fetch_and_save_transactions_by_address
-
+from app.services.transaccion import fetch_and_save_transactions_by_address
+from datetime import datetime
 
 async def obtener_todas_las_trazas():
     transacciones = await transaccion_collection.find({}).to_list(500)
@@ -95,13 +95,7 @@ async def obtener_todas_las_trazas():
         "trazas": trazas
     }
 
-from app.services.transaccion import fetch_and_save_transactions_by_address
-from app.services.reporte import fetch_reportes_by_address
-from app.database import direccion_collection, transaccion_collection, bloque_collection, reporte_collection
-from app.models.transaccion import TransaccionModel
-from app.schemas.bloque import BloqueResponseSchema
-from app.database import PyObjectId
-from datetime import datetime
+
 
 async def obtener_trazas_por_direccion(direccion_str: str, saltos: int = 3, limit: int = 20):
     """
