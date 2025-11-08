@@ -2,13 +2,13 @@
 
 import { Search, TrendingUp, Network, Clock } from "lucide-react"
 import { useState } from "react"
-import ModalDetalleTraza from "@/components/molecules/ModalDetalleTraza"
+import ModalDetalleRastreo from "@/components/molecules/ModalDetalleRastreo"
 
 // ======================= MODAL DE RESULTADOS =======================
 const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
   if (!isOpen) return null
   return (
-    <ModalDetalleTraza
+    <ModalDetalleRastreo
       isOpen={isOpen}
       onClose={onClose}
       data={data}
@@ -37,76 +37,77 @@ const AnalisisForenseTools = () => {
   }
 
   // ======================= FUNCIÓN PRINCIPAL =======================
-  const handleAction = async (accion) => {
-    if (accion === "Rastreo de Origen") {
-      try {
-        setLoading(true)
-        const direccion = form.destino
-        const profundidad = form.profundidad || 3
+const handleAction = async (accion) => {
+  const action = accion.trim().toLowerCase(); // 👈 normaliza
 
-        if (!direccion) {
-          alert("⚠️ Ingrese una dirección para rastrear.")
-          setLoading(false)
-          return
-        }
+  try {
+    setLoading(true);
 
-        // 🔹 Endpoint real del backend
-        const url = `http://localhost:8000/rastreo/origen?direccion=${direccion}&profundidad=${profundidad}`
-        console.log("🌐 Solicitando:", url)
+    let url = "";
+    let tipo = "";
+    let direccion = "";
 
-        // ✅ CORREGIDO: método POST
-        const response = await fetch(url, { method: "POST" })
-        if (!response.ok) throw new Error(`Error HTTP ${response.status}`)
+    if (action.includes("origen")) {
+      tipo = "origen";
+      direccion = form.destino;
+      const profundidad = form.profundidad || 3;
 
-        const data = await response.json()
-        console.log("✅ Datos recibidos:", data)
-
-        if (!data || !data.direccion_inicial) {
-          alert("⚠️ No se encontraron resultados para la dirección ingresada.")
-          return
-        }
-
-        // 🔧 CORREGIDO — garantiza que la lista de conexiones exista
-        const conexiones = Array.isArray(data.resultado) ? data.resultado : []
-        if (conexiones.length === 0) {
-          console.warn("⚠️ No se encontraron conexiones en data.resultado:", data)
-          alert("ℹ️ No se encontraron transacciones vinculadas a esa dirección.")
-        } else {
-          console.log(`✅ ${conexiones.length} conexión(es) encontradas.`)
-        }
-
-        // 🔹 Estructura formateada para el modal
-        const trazaFormateada = {
-          direccion: data.direccion_inicial,
-          perfil_riesgo: "N/A",
-          actividad: data.tipo,
-          cantidad_reportes: data.total_conexiones,
-          categorias: [],
-          total_recibido: 0,
-          total_enviado: 0,
-          final_balance: 0,
-          n_tx: conexiones.length,
-          primer_tx: conexiones[0]?.fecha || "N/A",
-          ultima_tx: conexiones.at(-1)?.fecha || "N/A",
-          ultimo_update_riesgo: data.fecha_analisis,
-          ponderaciones: {
-            total: data.total_conexiones,
-          },
-          conexiones, // 👈 lista de enlaces rastreados
-        }
-
-        setResultadoRastreo(trazaFormateada)
-        setIsModalOpen(true)
-      } catch (error) {
-        console.error("Error al rastrear dirección:", error)
-        alert("⚠️ Error al obtener los datos del servidor.")
-      } finally {
-        setLoading(false)
+      if (!direccion) {
+        alert("⚠️ Ingrese una dirección para rastrear el origen.");
+        setLoading(false);
+        return;
       }
-    } else {
-      alert(`🔍 Ejecutando ${accion}...\n${JSON.stringify(form, null, 2)}`)
+
+      url = `http://localhost:8000/rastreo/origen?direccion=${direccion}&profundidad=${profundidad}`;
     }
+
+    else if (action.includes("destino")) {
+      tipo = "destino";
+      direccion = form.origen;
+      const dias = form.periodo || 7;
+
+      if (!direccion) {
+        alert("⚠️ Ingrese una dirección para analizar destinos.");
+        setLoading(false);
+        return;
+      }
+
+      url = `http://localhost:8000/rastreo/destino?direccion=${direccion}&dias=${dias}`;
+    }
+
+    else {
+      alert(`🔍 Ejecutando ${accion}...\n${JSON.stringify(form, null, 2)}`);
+      setLoading(false);
+      return;
+    }
+
+    console.log(`🌐 Solicitando → ${url}`);
+
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+
+    const data = await response.json();
+    console.log("✅ Datos recibidos:", data);
+
+    const conexiones = Array.isArray(data.resultado) ? data.resultado : [];
+    const trazaFormateada = {
+      direccion: data.direccion_inicial,
+      tipo,
+      actividad: tipo === "destino" ? "Análisis de Destino" : "Rastreo de Origen",
+      cantidad_reportes: data.total_conexiones,
+      conexiones,
+      fecha_analisis: data.fecha_analisis,
+    };
+
+    setResultadoRastreo(trazaFormateada);
+    setIsModalOpen(true);
+  } catch (error) {
+    console.error("Error al procesar el análisis:", error);
+    alert("⚠️ Error al obtener los datos del servidor.");
+  } finally {
+    setLoading(false);
   }
+};
 
   // ======================= UI =======================
   return (
@@ -178,7 +179,7 @@ const AnalisisForenseTools = () => {
               {loading ? "Cargando..." : "Iniciar Rastreo"}
             </button>
 
-            {resultadoRastreo && (
+            {resultadoRastreo && resultadoRastreo.tipo === "origen" && (
               <p className="text-sm text-gray-600 mt-3">
                 🔍 Conexiones encontradas: {resultadoRastreo?.conexiones?.length || 0}
               </p>
@@ -222,11 +223,20 @@ const AnalisisForenseTools = () => {
 
             <button
               onClick={() => handleAction("Análisis de Destino")}
-              className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium"
+              disabled={loading}
+              className={`w-full ${
+                loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+              } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
               <TrendingUp className="h-4 w-4" />
-              Analizar Destinos
+              {loading ? "Cargando..." : "Analizar Destinos"}
             </button>
+
+            {resultadoRastreo && resultadoRastreo.tipo === "destino" && (
+              <p className="text-sm text-gray-600 mt-3">
+                📈 Conexiones encontradas: {resultadoRastreo?.conexiones?.length || 0}
+              </p>
+            )}
           </div>
 
           {/* ==================== Detección de Clusters ==================== */}

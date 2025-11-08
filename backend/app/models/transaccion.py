@@ -12,7 +12,7 @@ class TransaccionModel(BaseModel):
     monto_total: float
     estado: str
     patrones_sospechosos: List[str] = Field(default_factory=list)
-    bloque: Optional[PyObjectId] = None
+    bloque: Optional[Union[str, PyObjectId]] = None
     fees: Optional[float] = 0                  # <-- nuevo campo
     confirmations: Optional[int] = 0           # <-- nuevo campo
 

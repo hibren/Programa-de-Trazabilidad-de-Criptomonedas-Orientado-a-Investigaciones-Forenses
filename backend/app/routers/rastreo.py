@@ -37,15 +37,17 @@ async def rastrear_origen_endpoint(
 
 @router.post("/destino", response_model=RastreoOut)
 async def rastrear_destino_endpoint(
-    direccion: str = Query(..., description="Dirección origen a rastrear hacia adelante"),
-    profundidad: int = Query(3, ge=1, le=10, description="Cantidad de saltos hacia adelante")
+    direccion: str = Query(..., description="Dirección de origen a rastrear hacia adelante"),
+    dias: int = Query(7, ge=1, le=90, description="Cantidad de días a analizar hacia adelante")
 ):
     """
     Ejecuta un rastreo de destino, analizando hacia dónde se dirigen los fondos
-    desde una dirección origen. Usa datos locales o los obtiene de la API externa.
+    desde una dirección origen dentro de los últimos N días.
+    Usa datos locales o los obtiene de la API externa.
     """
     try:
-        resultado = await rastrear_destino(direccion, profundidad)
+        resultado = await rastrear_destino(direccion, dias)
         return resultado
     except Exception as e:
+        print(f"❌ Error en rastreo destino: {e}")
         raise HTTPException(status_code=500, detail=str(e))
