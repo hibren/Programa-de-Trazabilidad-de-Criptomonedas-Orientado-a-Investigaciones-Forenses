@@ -17,61 +17,76 @@ export default function DireccionGraph({ direccion }) {
         fetch("http://localhost:8000/direcciones/"),
         fetch("http://localhost:8000/transacciones/"),
       ])
-      const direcciones = await direccionesRes.json()
+
+      // Parse robusto por si el backend devuelve {data: [...]}
+      const direccionesJson = await direccionesRes.json()
+      const direcciones = Array.isArray(direccionesJson)
+        ? direccionesJson
+        : direccionesJson?.data || []
+
       const transacciones = await transaccionesRes.json()
 
-      // Crear mapa ID → dirección
-      const direccionMap = {}
-      direcciones.forEach((d) => {
-        direccionMap[d._id] = d.direccion
-      })
+      // 🔧 Helper: normaliza inputs/outputs a strings de direcciones
+      const toAddresses = (arr) =>
+        (arr || []).map((v) => {
+          if (typeof v === "string") return v // ya es dirección (p.ej. bc1..., 1A1z...)
+          if (v && typeof v === "object") {
+            // intenta campos típicos
+            return v.direccion || v.address || v.addr || v.hash || v._id || ""
+          }
+          return String(v || "")
+        }).filter(Boolean)
 
-      // Filtrar transacciones donde participa la dirección actual
-      const transaccionesFiltradas = transacciones.filter(
-        (tx) =>
-          tx.inputs.some((i) => direccionMap[i] === direccion) ||
-          tx.outputs.some((o) => direccionMap[o] === direccion)
+      // Índice por dirección para enriquecer nodos
+      const dirByAddress = Object.fromEntries(
+        direcciones.map((d) => [d.direccion, d])
       )
 
-      // Direcciones relacionadas
-      const direccionesRelacionadas = new Set()
+      // Filtrar transacciones donde participa la dirección actual
+      const transaccionesFiltradas = (Array.isArray(transacciones) ? transacciones : transacciones?.data || [])
+        .filter((tx) => {
+          const ins = toAddresses(tx.inputs)
+          const outs = toAddresses(tx.outputs)
+          return ins.includes(direccion) || outs.includes(direccion)
+        })
+
+      // Set de direcciones relacionadas (inputs + outputs de las tx filtradas)
+      const relacionadas = new Set()
       transaccionesFiltradas.forEach((tx) => {
-        tx.inputs.forEach((i) => direccionesRelacionadas.add(direccionMap[i]))
-        tx.outputs.forEach((o) => direccionesRelacionadas.add(direccionMap[o]))
+        toAddresses(tx.inputs).forEach((a) => relacionadas.add(a))
+        toAddresses(tx.outputs).forEach((a) => relacionadas.add(a))
       })
 
       // === NODOS ===
-      const nodesTemp = direcciones
-        .filter((d) => direccionesRelacionadas.has(d.direccion))
-        .map((d) => ({
-          id: d.direccion,
-          label: d.direccion.substring(0, 10) + "...",
-          title: `Balance: ${d.balance} BTC\nRiesgo: ${d.perfil_riesgo}`,
-          group: d.direccion === direccion ? "origen" : "otro",
-          value: d.total_recibido > 50 ? 40 : 20,
-        }))
+      const nodesTemp = Array.from(relacionadas).map((addr) => {
+        const d = dirByAddress[addr]
+        return {
+          id: addr,
+          label: addr.slice(0, 10) + "...",
+          title: d
+            ? `Balance: ${d.balance} BTC\nRiesgo: ${d.perfil_riesgo}\nTx: ${d.n_tx}`
+            : "Sin datos agregados",
+          group: addr === direccion ? "origen" : "otro",
+          value: d?.total_recibido > 50 ? 40 : 20,
+        }
+      })
 
       // === ARISTAS ===
       const edgesTemp = []
       transaccionesFiltradas.forEach((tx) => {
+        const ins = toAddresses(tx.inputs)
+        const outs = toAddresses(tx.outputs)
         const monto = tx.monto_total || 0
-        tx.inputs.forEach((inputId) => {
-          const inputAddr = direccionMap[inputId]
-          tx.outputs.forEach((outputId) => {
-            const outputAddr = direccionMap[outputId]
-            if (
-              inputAddr &&
-              outputAddr &&
-              direccionesRelacionadas.has(inputAddr) &&
-              direccionesRelacionadas.has(outputAddr)
-            ) {
+
+        ins.forEach((fromAddr) => {
+          outs.forEach((toAddr) => {
+            if (relacionadas.has(fromAddr) && relacionadas.has(toAddr)) {
               edgesTemp.push({
-                from: inputAddr,
-                to: outputAddr,
+                from: fromAddr,
+                to: toAddr,
                 label: `${monto} BTC`,
                 arrows: "to",
-                // Amarillo = conexiones principales, Celeste = resto
-                color: { color: inputAddr === direccion ? "#facc15" : "#60a5fa" },
+                color: { color: fromAddr === direccion ? "#facc15" : "#60a5fa" },
               })
             }
           })
@@ -81,7 +96,7 @@ export default function DireccionGraph({ direccion }) {
       setNodes(nodesTemp)
       setEdges(edgesTemp)
 
-      // === CONFIGURACIÓN VIS-NETWORK ===
+      // === VIS-NETWORK ===
       const network = new Network(
         containerRef.current,
         { nodes: nodesTemp, edges: edgesTemp },
@@ -103,15 +118,17 @@ export default function DireccionGraph({ direccion }) {
             arrows: { to: { enabled: true, scaleFactor: 1.2 } },
           },
           groups: {
-            origen: { color: { background: "#3b82f6", border: "#1e40af" } }, // azul
-            otro: { color: { background: "#22c55e", border: "#15803d" } },   // verde
+            origen: { color: { background: "#3b82f6", border: "#1e40af" } },
+            otro: { color: { background: "#22c55e", border: "#15803d" } },
           },
         }
       )
 
-      // Centrar en la dirección actual
+      // Centrar en la dirección actual (si existe en nodos)
       setTimeout(() => {
-        network.focus(direccion, { scale: 1.5, animation: { duration: 1000 } })
+        if (relacionadas.has(direccion)) {
+          network.focus(direccion, { scale: 1.5, animation: { duration: 1000 } })
+        }
       }, 800)
 
       network.on("click", (params) => {
@@ -134,15 +151,12 @@ export default function DireccionGraph({ direccion }) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Grafo principal */}
       <div className="lg:col-span-2 bg-white rounded-lg shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
-          Flujo de Transacciones
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Flujo de Transacciones</h2>
         <div ref={containerRef} className="w-full h-[500px] border rounded bg-[#0f172a]" />
       </div>
 
       {/* Panel lateral */}
       <div className="space-y-6">
-        {/* Nodo seleccionado */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Nodo seleccionado</h3>
           {selectedNode ? (
@@ -156,7 +170,6 @@ export default function DireccionGraph({ direccion }) {
           )}
         </div>
 
-        {/* Estadísticas */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Estadísticas</h3>
           <ul className="text-xs text-gray-700 space-y-1">
@@ -166,7 +179,6 @@ export default function DireccionGraph({ direccion }) {
           </ul>
         </div>
 
-        {/* Leyenda */}
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Leyenda</h3>
           <ul className="space-y-2 text-sm text-gray-700">
