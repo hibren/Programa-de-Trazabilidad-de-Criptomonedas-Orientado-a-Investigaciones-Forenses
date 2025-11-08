@@ -1,25 +1,35 @@
 from typing import List, Optional
 import httpx
-from fastapi import HTTPException
+import json
 from datetime import datetime
 from app.database import transaccion_collection, PyObjectId
 from app.models.transaccion import TransaccionModel
 from app.schemas.transaccion import TransaccionCreateSchema
 from app.services.direccion import fetch_and_save_direccion
 from app.services.bloque import fetch_and_save_bloque
+import os
+import asyncio
 
+
+# ================================================================
+# 🔹 CONFIGURACIÓN DE BLOCKCYPHER
+# ================================================================
+BLOCKCYPHER_API = "https://api.blockcypher.com/v1/btc/main"
+BLOCKCYPHER_TOKEN = os.getenv("BLOCKCYPHER_TOKEN", "TOKEN")
+
+#d210a6ac92274d61b1f15e2c3652bf57
+
+# ================================================================
+# 🔹 CRUD BÁSICO
+# ================================================================
 async def get_all_transacciones() -> List[TransaccionModel]:
     docs = await transaccion_collection.find().to_list(100)
     return [TransaccionModel(**doc) for doc in docs]
 
+
 async def create_transaccion(data: TransaccionCreateSchema) -> TransaccionModel:
-    # Resolve inputs and outputs to get their ObjectIds
-    inputs_ids = [
-        (await fetch_and_save_direccion(addr)).id for addr in data.inputs
-    ]
-    outputs_ids = [
-        (await fetch_and_save_direccion(addr)).id for addr in data.outputs
-    ]
+    inputs_ids = [(await fetch_and_save_direccion(addr)).id for addr in data.inputs]
+    outputs_ids = [(await fetch_and_save_direccion(addr)).id for addr in data.outputs]
 
     transaccion_doc = {
         "hash": data.hash,
@@ -36,9 +46,11 @@ async def create_transaccion(data: TransaccionCreateSchema) -> TransaccionModel:
     created = await transaccion_collection.find_one({"_id": result.inserted_id})
     return TransaccionModel(**created)
 
+
 async def get_transaccion_by_hash(hash_str: str) -> Optional[TransaccionModel]:
     doc = await transaccion_collection.find_one({"hash": hash_str})
     return TransaccionModel(**doc) if doc else None
+
 
 async def update_transaccion(transaccion_id: str, data: dict) -> Optional[TransaccionModel]:
     await transaccion_collection.update_one(
@@ -47,140 +59,149 @@ async def update_transaccion(transaccion_id: str, data: dict) -> Optional[Transa
     updated = await transaccion_collection.find_one({"_id": PyObjectId(transaccion_id)})
     return TransaccionModel(**updated) if updated else None
 
+
 async def delete_transaccion(transaccion_id: str) -> int:
     result = await transaccion_collection.delete_one({"_id": PyObjectId(transaccion_id)})
     return result.deleted_count
 
-async def _fetch_raw_transactions_by_address(address: str, limit: int = 10) -> List[dict]:
-    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full?limit={limit}"
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            response = await client.get(url)
-            response.raise_for_status()
-            try:
-                data = response.json()
-            except ValueError:
-                raise ValueError("La respuesta de la API no es JSON válido")
-
-            if "error" in data:
-                raise ValueError(data["error"])
-        except httpx.HTTPStatusError as e:
-            raise Exception(f"Error HTTP: {e.response.text}") from e
-        except httpx.RequestError as e:
-            raise Exception(f"Error de conexión con la API: {str(e)}") from e
-
-    if "txs" in data:
-        return data["txs"]
-    else:
-        return []
-
-async def fetch_and_save_transactions_by_address(direccion: str):
+# ================================================================
+# 🔹 DESCARGA DESDE BLOCKCYPHER (ROBUSTA)
+# ================================================================
+async def _fetch_raw_transactions_by_address(address: str, limit: int = 5) -> List[dict]:
     """
-    Obtiene las transacciones de una dirección Bitcoin usando BlockCypher o Blockstream como respaldo.
-    Guarda los resultados en MongoDB transformando los datos al formato de TransaccionModel.
+    Consulta la API de BlockCypher con token, detecta bloqueos Cloudflare
+    y reintenta automáticamente en caso de límite o respuesta HTML.
     """
-    print(f"🌐 [FETCH] Buscando transacciones para {direccion}")
-
-    # --- URLs base ---
-    url_blockcypher = f"https://api.blockcypher.com/v1/btc/main/addrs/{direccion}/full"
-    url_blockstream = f"https://blockstream.info/api/address/{direccion}/txs"
-
+    url = f"{BLOCKCYPHER_API}/addrs/{address}/full?limit={limit}&token={BLOCKCYPHER_TOKEN}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://blockcypher.com/",
-        "Connection": "keep-alive"
+        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+        "Connection": "keep-alive",
+        "Referer": "https://live.blockcypher.com/",
+        "Origin": "https://live.blockcypher.com",
     }
 
+    await asyncio.sleep(1)  # pequeña pausa para evitar rate limit
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
-            resp = await client.get(url_blockcypher, headers=headers)
-            if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("application/json"):
-                data = resp.json()
-                fuente = "blockcypher"
-            else:
-                raise Exception("Respuesta no JSON de BlockCypher")
-        except Exception as e:
-            print(f"⚠️ BlockCypher bloqueado: {e} → intentando Blockstream...")
-            resp = await client.get(url_blockstream, headers=headers)
-            if resp.status_code != 200:
-                raise HTTPException(status_code=500, detail="No se pudo obtener datos de ninguna API")
-            data = resp.json()
-            fuente = "blockstream"
+            response = await client.get(url, headers=headers)
 
-    print(f"✅ Datos obtenidos de {fuente} ({len(data) if isinstance(data, list) else 1} registros)")
+            # 🔸 Detección de bloqueo Cloudflare (HTML)
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" in content_type or "<!DOCTYPE html>" in response.text:
+                print(f"⚠️ Cloudflare Challenge detectado para {address}. Esperando 60s...")
+                await asyncio.sleep(60)
+                return await _fetch_raw_transactions_by_address(address, limit)
 
-    # --- Normalizar estructura ---
-    txs = data.get("txs", []) if isinstance(data, dict) else data
+            try:
+                data = response.json()
+            except json.JSONDecodeError:
+                print(f"⚠️ Respuesta inválida para {address}, reintentando en 30s...")
+                await asyncio.sleep(30)
+                return await _fetch_raw_transactions_by_address(address, limit)
 
-    for tx_data in txs:
-        try:
-            # 🧩 Obtener hash y fecha
-            tx_hash = tx_data.get("txid") or tx_data.get("hash")
-            if not tx_hash:
-                continue
+            # 🔸 Manejo de errores de API
+            if "error" in data:
+                if "Limits reached" in data["error"]:
+                    print(f"⏳ Límite de API alcanzado para {address}. Esperando 60s...")
+                    await asyncio.sleep(60)
+                    return await _fetch_raw_transactions_by_address(address, limit)
+                else:
+                    raise Exception(f"Error en API BlockCypher: {data['error']}")
 
-            if "status" in tx_data and tx_data["status"].get("block_time"):
-                fecha = datetime.fromtimestamp(tx_data["status"]["block_time"])
-            elif tx_data.get("confirmed"):
-                fecha = datetime.fromisoformat(tx_data["confirmed"].replace("Z", "+00:00"))
-            else:
-                fecha = datetime.now()
+            return data.get("txs", [])
 
-            # 🔹 Inputs → extraer direcciones
-            input_addrs = []
-            for vin in tx_data.get("vin", []) or tx_data.get("inputs", []):
-                prevout = vin.get("prevout") if "prevout" in vin else vin
-                addr = prevout.get("scriptpubkey_address") or (vin.get("addresses", [None])[0] if vin.get("addresses") else None)
+        except httpx.RequestError as e:
+            print(f"⚠️ Error de conexión con BlockCypher: {e}")
+            await asyncio.sleep(15)
+            return await _fetch_raw_transactions_by_address(address, limit)
+        except httpx.HTTPStatusError as e:
+            print(f"⚠️ Error HTTP: {e.response.text}")
+            await asyncio.sleep(15)
+            return await _fetch_raw_transactions_by_address(address, limit)
+
+
+# ================================================================
+# 🔹 GUARDAR TRANSACCIONES EN MONGO
+# ================================================================
+async def fetch_and_save_transactions_by_address(address: str) -> List[TransaccionModel]:
+    raw_txs = await _fetch_raw_transactions_by_address(address)
+    saved_transactions = []
+
+    for tx_data in raw_txs:
+        tx_hash = tx_data.get("hash")
+        if not tx_hash:
+            continue
+
+        existing_tx = await get_transaccion_by_hash(tx_hash)
+        if existing_tx:
+            saved_transactions.append(existing_tx)
+            continue
+
+        # Bloque asociado
+        block_id = None
+        block_hash = tx_data.get("block_hash")
+        if block_hash:
+            bloque = await fetch_and_save_bloque(block_hash)
+            if bloque:
+                block_id = bloque.id
+
+        # Inputs
+        input_ids = []
+        for vin in tx_data.get("inputs", []):
+            for addr in vin.get("addresses", []):
                 if addr:
-                    input_addrs.append(addr)
+                    direccion = await fetch_and_save_direccion(addr)
+                    input_ids.append(direccion.id)
 
-            # 🔹 Outputs → extraer direcciones
-            output_addrs = []
-            for vout in tx_data.get("vout", []) or tx_data.get("outputs", []):
-                addr = vout.get("scriptpubkey_address") or (vout.get("addresses", [None])[0] if vout.get("addresses") else None)
+        # Outputs
+        output_ids = []
+        for vout in tx_data.get("outputs", []):
+            for addr in vout.get("addresses", []):
                 if addr:
-                    output_addrs.append(addr)
+                    direccion = await fetch_and_save_direccion(addr)
+                    output_ids.append(direccion.id)
 
-            # 🔹 Calcular monto total
-            monto_total = sum(v.get("value", 0) for v in tx_data.get("vout", []) or tx_data.get("outputs", [])) / 1e8
-            estado = "confirmada" if tx_data.get("status", {}).get("confirmed") or tx_data.get("block_height") else "pendiente"
-            block_hash = tx_data.get("status", {}).get("block_hash") or tx_data.get("block_hash")
+        # Fecha
+        fecha_str = tx_data.get("confirmed")
+        fecha_obj = datetime.fromisoformat(fecha_str.replace("Z", "+00:00")) if fecha_str else datetime.now()
 
-            # 🔹 Crear doc limpio (compatible con TransaccionModel)
-            transaccion_doc = {
-                "hash": tx_hash,
-                "fecha": fecha,
-                "inputs": input_addrs,
-                "outputs": output_addrs,
-                "monto_total": monto_total,
-                "estado": estado,
-                "patrones_sospechosos": [],
-                "bloque": block_hash,
-                "fees": float(tx_data.get("fee", 0)) / 1e8,
-                "confirmations": 1 if estado == "confirmada" else 0,
-            }
+        # Crear documento de transacción
+        transaccion_doc = {
+            "hash": tx_hash,
+            "fecha": fecha_obj,
+            "inputs": input_ids,
+            "outputs": output_ids,
+            "monto_total": float(tx_data.get("total", 0)) / 100_000_000,  # satoshis → BTC
+            "estado": "confirmada" if tx_data.get("block_height", -1) > 0 else "pendiente",
+            "patrones_sospechosos": [],
+            "bloque": block_id,
+            "fees": float(tx_data.get("fees", 0)) / 100_000_000,
+            "confirmations": int(tx_data.get("confirmations", 0)),
+        }
 
-            # Guardar en Mongo (sin romper duplicados)
-            await transaccion_collection.update_one(
-                {"hash": tx_hash},
-                {"$set": transaccion_doc},
-                upsert=True
-            )
+        # Guardar en Mongo
+        result = await transaccion_collection.insert_one(transaccion_doc)
+        created = await transaccion_collection.find_one({"_id": result.inserted_id})
+        if created:
+            saved_transactions.append(TransaccionModel(**created))
 
-        except Exception as e:
-            print(f"⚠️ Error al procesar transacción: {e}")
+    print(f"💾 Guardadas {len(saved_transactions)} transacciones nuevas para {address}")
+    return saved_transactions
 
-    print(f"💾 {len(txs)} transacciones procesadas y guardadas para {direccion}")
-    return True
 
+# ================================================================
+# 🔹 UTILIDADES
+# ================================================================
 async def fetch_transactions_by_address(address: str) -> List[dict]:
     await fetch_and_save_transactions_by_address(address)
     return await _fetch_raw_transactions_by_address(address)
 
-#obtener las transacciones desde la bd 
+
 async def get_transacciones_by_direccion(direccion_id: str) -> List[TransaccionModel]:
     direccion_obj_id = PyObjectId(direccion_id)
 
