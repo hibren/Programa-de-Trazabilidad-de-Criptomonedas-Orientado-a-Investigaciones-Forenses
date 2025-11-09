@@ -29,7 +29,7 @@ const AnalisisForenseTools = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingAction, setLoadingAction] = useState(null) // Estado para saber qué acción está cargando
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -39,7 +39,7 @@ const AnalisisForenseTools = () => {
   // ======================= FUNCIÓN PRINCIPAL =======================
 const handleAction = async (tipoAccion) => {
   try {
-    setLoading(true);
+    setLoadingAction(tipoAccion);
 
     let url = "";
     let tipo = "";
@@ -77,29 +77,24 @@ const handleAction = async (tipoAccion) => {
     const response = await fetch(url, { method: "POST" });
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(`Error HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+      // FastAPI a menudo envía el detalle en un campo 'detail'
+      const errorMessage = errorData.detail 
+        ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
+        : response.statusText;
+
+      throw new Error(`Error HTTP ${response.status}: ${errorMessage}`);
     }
 
     const data = await response.json();
     console.log("✅ Datos recibidos:", data);
 
-    const conexiones = Array.isArray(data.resultado) ? data.resultado : [];
-    const trazaFormateada = {
-      direccion: data.direccion_inicial,
-      tipo,
-      actividad: tipo === "destino" ? "Análisis de Destino" : "Rastreo de Origen",
-      cantidad_reportes: data.total_conexiones,
-      conexiones,
-      fecha_analisis: data.fecha_analisis,
-    };
-
-    setResultadoRastreo(trazaFormateada);
+    setResultadoRastreo(data);
     setIsModalOpen(true);
   } catch (error) {
     console.error("Error al procesar el análisis:", error);
     alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`);
   } finally {
-    setLoading(false);
+    setLoadingAction(null);
   }
 };
 
@@ -163,13 +158,13 @@ const handleAction = async (tipoAccion) => {
 
             <button
               onClick={() => handleAction("origen")}
-              disabled={loading}
+              disabled={loadingAction === "origen"}
               className={`w-full ${
-                loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "origen" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
               <Search className="h-4 w-4" />
-              {loading ? "Cargando..." : "Iniciar Rastreo"}
+              {loadingAction === "origen" ? "Cargando..." : "Iniciar Rastreo"}
             </button>
 
             {resultadoRastreo && resultadoRastreo.tipo === "origen" && (
@@ -212,17 +207,18 @@ const handleAction = async (tipoAccion) => {
               <option value="7">Últimos 7 días</option>
               <option value="30">Últimos 30 días</option>
               <option value="90">Últimos 90 días</option>
+              <option value="historico">Histórico (completo)</option>
             </select>
 
             <button
-              onClick={() => handleAction("Análisis de Destino")}
-              disabled={loading}
+              onClick={() => handleAction("destino")}
+              disabled={loadingAction === "destino"}
               className={`w-full ${
-                loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "destino" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
               <TrendingUp className="h-4 w-4" />
-              {loading ? "Cargando..." : "Analizar Destinos"}
+              {loadingAction === "destino" ? "Cargando..." : "Analizar Destinos"}
             </button>
 
             {resultadoRastreo && resultadoRastreo.tipo === "destino" && (

@@ -231,27 +231,35 @@ async def rastrear_origen(direccion_inicial: str, profundidad: int = 3):
 # ================================================================
 # 🔹 RASTREO DE DESTINO — Hacia adelante en la cadena (CORREGIDO)
 # ================================================================
-async def rastrear_destino(direccion_inicial: str, dias: int = 7):
+async def rastrear_destino(direccion_inicial: str, dias: str = "7"): # Acepta str para "historico"
     """
     Rastrear hacia dónde se dirigen los fondos desde una dirección origen.
     """
-    print(f"\n🚀 [RASTREO DE DESTINO] {direccion_inicial} | últimos {dias} días")
+    periodo_str = f"últimos {dias} días" if dias != "historico" else "histórico"
+    print(f"\n🚀 [RASTREO DE DESTINO] {direccion_inicial} | período={periodo_str}")
 
     existente = await rastreo_collection.find_one({
         "direccion_inicial": direccion_inicial,
         "tipo": "destino",
-        "dias": dias
     })
     if existente:
-        print("📂 Rastreo existente → devolviendo desde Mongo")
-        existente["_id"] = str(existente["_id"])
-        if "resultado" in existente:
-            for r in existente["resultado"]:
-                if isinstance(r.get("fecha"), datetime):
-                    r["fecha"] = r["fecha"].isoformat()
+        existente["id"] = str(existente.get("_id", ""))
+        existente.pop("_id", None)
+        for r in existente.get("resultado", []):
+            if isinstance(r.get("fecha"), datetime):
+                r["fecha"] = r["fecha"].isoformat()
         if isinstance(existente.get("fecha_analisis"), datetime):
             existente["fecha_analisis"] = existente["fecha_analisis"].isoformat()
+        print("📂 Rastreo DESTINO existente → devolviendo desde Mongo")
         return existente
+
+    # 🔹 PASO 0: Asegurarse de que la dirección inicial exista en la BD
+    print(f"🌐 [Paso 0] Asegurando que la dirección {direccion_inicial[:8]}... exista en la BD.")
+    try:
+        await fetch_and_save_direccion(direccion_inicial)
+        print(f"   ✅ Dirección {direccion_inicial[:8]}... guardada/actualizada.")
+    except Exception as e:
+        print(f"   ⚠️ Error al guardar la dirección inicial {direccion_inicial[:8]}...: {e}")
 
     # Obtener transacciones de BlockCypher
     try:
@@ -273,14 +281,21 @@ async def rastrear_destino(direccion_inicial: str, dias: int = 7):
         }
     
     direccion_obj_id = direccion_doc["_id"]
-    fecha_limite = datetime.now(timezone.utc) - timedelta(days=dias)
 
-    # Buscar transacciones donde la dirección ENVIÓ fondos
-    # Para rastrear el destino, buscamos transacciones donde la dirección es un input (envió fondos)
-    cursor = transaccion_collection.find({
-        "inputs": direccion_obj_id,
-        "fecha": {"$gte": fecha_limite}
-    }).limit(50)
+    # Construir el filtro de consulta
+    query_filter = {"inputs": direccion_obj_id}
+    if dias != "historico": # Si no es histórico, aplicar filtro de fecha
+        try:
+            dias_int = int(dias)
+            fecha_limite = datetime.now(timezone.utc) - timedelta(days=dias_int)
+            query_filter["fecha"] = {"$gte": fecha_limite}
+        except ValueError:
+            print(f"⚠️ Valor de 'dias' no válido: {dias}. Se procederá sin filtro de fecha.")
+    else:
+        print("ℹ️ Realizando búsqueda histórica sin límite de fecha.")
+
+    # Buscar transacciones donde la dirección es un input (envió fondos)
+    cursor = transaccion_collection.find(query_filter).limit(50)
     
     txs_enviadas = await cursor.to_list(length=None)
     print(f"📤 {direccion_inicial[:8]}... envió {len(txs_enviadas)} transacciones")
@@ -334,14 +349,16 @@ async def rastrear_destino(direccion_inicial: str, dias: int = 7):
         return rastreo.model_dump(mode="json", by_alias=True)
     else:
         print(f"⚠️ No se encontraron transacciones salientes")
-        return {
-            "direccion_inicial": direccion_inicial,
-            "tipo": "destino",
-            "mensaje": f"No se encontraron transacciones salientes en los últimos {dias} días.",
-            "resultado": [],
-            "total_conexiones": 0,
-            "fecha_analisis": datetime.now(timezone.utc).isoformat(),
-        }
+        rastreo_vacio = RastreoModel(
+            id=None,
+            direccion_inicial=direccion_inicial,
+            tipo="destino",
+            mensaje=f"No se encontraron transacciones salientes para el período seleccionado.",
+            resultado=[],
+            total_conexiones=0,
+            fecha_analisis=datetime.now(timezone.utc),
+        )
+        return rastreo_vacio.model_dump(mode="json", by_alias=True, exclude_none=True)
 
 
 # ================================================================

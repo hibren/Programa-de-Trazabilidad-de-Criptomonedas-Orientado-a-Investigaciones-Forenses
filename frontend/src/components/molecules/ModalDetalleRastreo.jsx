@@ -13,10 +13,10 @@ const ModalDetalleRastreo = ({ isOpen, onClose, data }) => {
 
   const tipo = data.tipo || "rastreo"
   const conexiones = Array.isArray(data.resultado)
-  ? data.resultado
-  : Array.isArray(data.conexiones)
-  ? data.conexiones
-  : []
+    ? data.resultado
+    : Array.isArray(data.conexiones)
+    ? data.conexiones
+    : []
   const color =
     tipo === "origen" ? "text-blue-700" : tipo === "destino" ? "text-green-700" : "text-gray-700"
   const Icono =
