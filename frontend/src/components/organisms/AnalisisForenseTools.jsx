@@ -25,7 +25,10 @@ const AnalisisForenseTools = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
-  const [loadingAction, setLoadingAction] = useState(null) // Estado para saber qué acción está cargando
+  const [isClusterModalOpen, setIsClusterModalOpen] = useState(false)
+  const [resultadoCluster, setResultadoCluster] = useState(null)
+  const [loadingAction, setLoadingAction] = useState(null)
+  const [loadingCluster, setLoadingCluster] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -33,64 +36,83 @@ const AnalisisForenseTools = () => {
   }
 
   // ======================= FUNCIÓN PRINCIPAL =======================
-const handleAction = async (tipoAccion) => {
-  try {
-    setLoadingAction(tipoAccion);
+  const handleAction = async (tipoAccion) => {
+    try {
+      setLoadingAction(tipoAccion)
 
-    let url = "";
-    let tipo = "";
-    let direccion = "";
-    let params = {};
+      let url = ""
+      let tipo = ""
+      let direccion = ""
+      let params = {}
 
-    if (tipoAccion === "origen") {
-      tipo = "origen";
-      direccion = form.direccionDestino;
-      params = { direccion, profundidad: form.profundidad || 3 };
-      if (!direccion) {
-        alert("⚠️ Ingrese una dirección para rastrear el origen.");
-        return; // Salir temprano
+      if (tipoAccion === "origen") {
+        tipo = "origen"
+        direccion = form.direccionDestino
+        params = { direccion, profundidad: form.profundidad || 3 }
+        if (!direccion) {
+          alert("⚠️ Ingrese una dirección para rastrear el origen.")
+          return
+        }
+        url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`
+      } else if (tipoAccion === "destino") {
+        tipo = "destino"
+        direccion = form.direccionOrigen
+        params = { direccion, dias: form.periodo || 7 }
+        if (!direccion) {
+          alert("⚠️ Ingrese una dirección para analizar destinos.")
+          return
+        }
+        url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`
+      } else if (tipoAccion === "cluster") {
+        const direccionBase = form.direccionBase
+        if (!direccionBase) {
+          alert("⚠️ Ingrese una dirección base para detectar el cluster.")
+          return
+        }
+
+        const algoritmo = form.algoritmo || "coincidencia-etiquetas"
+        setLoadingCluster(true)
+
+        const res = await fetch(
+          `http://localhost:8000/clusters/detectar?direccion=${direccionBase}&algoritmo=${algoritmo}`
+        )
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || "Error en detección de cluster")
+
+        console.log("✅ Cluster detectado:", data)
+        setResultadoCluster(data)
+        setIsClusterModalOpen(true)
+        return
+      } else {
+        alert(`🔍 Acción "${tipoAccion}" aún no implementada.`)
+        return
       }
-      url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`;
-    }
-    else if (tipoAccion === "destino") {
-      tipo = "destino";
-      direccion = form.direccionOrigen;
-      params = { direccion, dias: form.periodo || 7 };
-      if (!direccion) {
-        alert("⚠️ Ingrese una dirección para analizar destinos.");
-        return; // Salir temprano
+
+      console.log(`🌐 Solicitando → ${url}`)
+      const response = await fetch(url, { method: "POST" })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.detail
+          ? typeof errorData.detail === "string"
+            ? errorData.detail
+            : JSON.stringify(errorData.detail)
+          : response.statusText
+        throw new Error(`Error HTTP ${response.status}: ${errorMessage}`)
       }
-      url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`;
+
+      const data = await response.json()
+      console.log("✅ Datos recibidos:", data)
+      setResultadoRastreo(data)
+      setIsModalOpen(true)
+    } catch (error) {
+      console.error("Error al procesar el análisis:", error)
+      alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`)
+    } finally {
+      setLoadingAction(null)
+      setLoadingCluster(false)
     }
-    else {
-      // Para "Detección de Clusters" y "Análisis Temporal"
-      alert(`🔍 Acción "${tipoAccion}" aún no implementada.\n${JSON.stringify(form, null, 2)}`);
-      return;
-    }
-
-    console.log(`🌐 Solicitando → ${url}`);
-
-    const response = await fetch(url, { method: "POST" });
-    if (!response.ok) {
-      const errorData = await response.json();
-      // FastAPI a menudo envía el detalle en un campo 'detail'
-      const errorMessage = errorData.detail 
-        ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
-        : response.statusText;
-
-      throw new Error(`Error HTTP ${response.status}: ${errorMessage}`);
-    }
-
-    const data = await response.json();
-    console.log("✅ Datos recibidos:", data);
-
-    setResultadoRastreo(data);
-    setIsModalOpen(true);
-  } catch (error) {
-    console.error("Error al procesar el análisis:", error);
-    alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`);
-  } finally {
-    setLoadingAction(null);
   }
 
   // ======================= UI =======================
@@ -132,9 +154,7 @@ const handleAction = async (tipoAccion) => {
               Identifica el origen de los fondos rastreando hacia atrás en la blockchain
             </p>
 
-            <label className="block text-sm text-gray-700 mb-1">
-              Dirección de Destino
-            </label>
+            <label className="block text-sm text-gray-700 mb-1">Dirección de Destino</label>
             <input
               type="text"
               name="direccionDestino"
@@ -144,9 +164,7 @@ const handleAction = async (tipoAccion) => {
               className="w-full border rounded-md px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-green-500"
             />
 
-            <label className="block text-sm text-gray-700 mb-1">
-              Profundidad de Búsqueda
-            </label>
+            <label className="block text-sm text-gray-700 mb-1">Profundidad de Búsqueda</label>
             <select
               name="profundidad"
               value={form.profundidad}
@@ -162,11 +180,22 @@ const handleAction = async (tipoAccion) => {
               onClick={() => handleAction("origen")}
               disabled={loadingAction === "origen"}
               className={`w-full ${
-                loadingAction === "origen" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "origen"
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <Search className="h-4 w-4" />
-              {loadingAction === "origen" ? "Cargando..." : "Iniciar Rastreo"}
+              {loadingAction === "origen" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  Iniciar Rastreo
+                </>
+              )}
             </button>
           </div>
 
@@ -208,11 +237,22 @@ const handleAction = async (tipoAccion) => {
               onClick={() => handleAction("destino")}
               disabled={loadingAction === "destino"}
               className={`w-full ${
-                loadingAction === "destino" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "destino"
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <TrendingUp className="h-4 w-4" />
-              {loadingAction === "destino" ? "Cargando..." : "Analizar Destinos"}
+              {loadingAction === "destino" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="h-4 w-4" />
+                  Analizar Destinos
+                </>
+              )}
             </button>
           </div>
 
