@@ -202,16 +202,17 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
     """
     Analiza una dirección específica o todas las direcciones.
     Combina reportes, actividad reciente y categorías delictivas.
-    Actualiza la colección `direccion_collection` con el estado actual del riesgo.
+    Actualiza la colección `direccion_collection` con el estado actual del riesgo
+    y genera alertas automáticas si el riesgo es ALTO o CRÍTICO.
     """
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 INICIANDO ANÁLISIS DE RIESGO")
-    print("="*60)
-    
+    print("=" * 60)
+
     # QUERY
     query = {"direccion": direccion} if direccion else {}
     print(f"📍 Query: {query}")
-    
+
     direcciones = await direccion_collection.find(query).to_list(None)
     print(f"🔍 Analizando {len(direcciones)} dirección(es)...")
     resultados = []
@@ -219,11 +220,11 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
     for dir_doc in direcciones:
         addr = dir_doc["direccion"]
         doc_id = dir_doc["_id"]
-        
-        print(f"\n{'='*60}")
+
+        print(f"\n{'=' * 60}")
         print(f"📌 DIRECCIÓN: {addr}")
         print(f"🆔 ObjectId: {doc_id} (tipo: {type(doc_id)})")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         # --- Reportes asociados ---
         reportes = await reporte_collection.find({"id_direccion": addr}).to_list(None)
@@ -272,7 +273,7 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
             "categorias": categorias,
             "ponderaciones": resultado["ponderaciones"],
         }
-        
+
         if ultima_tx_iso:
             update_data["ultima_tx"] = ultima_tx_iso
 
@@ -281,43 +282,43 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
         print(f"   Datos a actualizar:")
         for key, val in update_data.items():
             print(f"      - {key}: {val}")
-        
+
         try:
             # --- Actualización en direccion_collection ---
             update_result = await direccion_collection.update_one(
                 {"_id": doc_id},
                 {"$set": update_data}
             )
-            
+
             print(f"\n📊 RESULTADO DE UPDATE:")
             print(f"   ✓ Matched: {update_result.matched_count}")
             print(f"   ✓ Modified: {update_result.modified_count}")
             print(f"   ✓ Acknowledged: {update_result.acknowledged}")
-            
-            if update_result.matched_count == 0:
-                print(f"   ❌ NO SE ENCONTRÓ EL DOCUMENTO CON _id: {doc_id}")
-                # Intenta buscar directamente para verificar que existe
-                verify = await direccion_collection.find_one({"_id": doc_id})
-                print(f"   🔍 Verificación - Documento existe: {verify is not None}")
-                if verify:
-                    print(f"      Documento encontrado: {verify}")
-            
-            if update_result.modified_count == 0 and update_result.matched_count > 0:
-                print(f"   ⚠️ DOCUMENTO ENCONTRADO PERO NO SE MODIFICÓ")
-                # Verifica los datos actuales
-                current = await direccion_collection.find_one({"_id": doc_id})
-                print(f"   📋 Estado actual:")
-                for key in ["perfil_riesgo", "total", "cantidad_reportes"]:
-                    print(f"      - {key}: {current.get(key)}")
-            
+
             actualizado = update_result.modified_count > 0
-            
+
+            # ------------------------------------------------------------
+            # 🚨 GENERAR ALERTA AUTOMÁTICA SI RIESGO ES ALTO O CRÍTICO
+            # ------------------------------------------------------------
+            try:
+                from app.services.alerta import generar_alerta_por_riesgo
+                from app.database import db
+
+                nivel = update_data.get("perfil_riesgo", "").lower()
+                if nivel in ["alto", "crítico"]:
+                    print(f"🚨 Nivel {nivel.upper()} detectado para {addr}, generando alerta...")
+                    await generar_alerta_por_riesgo(db, str(doc_id), nivel.capitalize())
+                else:
+                    print(f"ℹ️ Riesgo {nivel} → no se genera alerta para {addr}")
+
+            except Exception as e:
+                print(f"❌ Error generando alerta automática para {addr}: {e}")
+
         except Exception as e:
             print(f"   ❌ ERROR EN UPDATE: {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
             actualizado = False
-            update_result = None
 
         # --- Registro histórico en colección analisis ---
         try:
@@ -339,7 +340,6 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
         except Exception as e:
             print(f"❌ ERROR guardando análisis: {e}")
 
-        # --- Acumulación para la respuesta ---
         resultados.append({
             "direccion": addr,
             "nivel": resultado["nivel"],
@@ -352,10 +352,10 @@ async def analizar_riesgo_direcciones(direccion: Optional[str] = None):
             "actualizado": actualizado
         })
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🏁 ANÁLISIS COMPLETADO")
     print(f"   Direcciones analizadas: {len(resultados)}")
     print(f"   Direcciones actualizadas: {sum(1 for r in resultados if r['actualizado'])}")
-    print(f"{'='*60}\n")
-    
+    print(f"{'=' * 60}\n")
+
     return {"analizadas": len(resultados), "resultados": resultados}

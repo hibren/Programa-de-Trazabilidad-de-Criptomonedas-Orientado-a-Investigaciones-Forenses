@@ -2,12 +2,12 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 class BloqueInfo(BaseModel):
-    id: str
-    numero_bloque: Optional[int]
-    hash: Optional[str]
-    fecha: Optional[str]
-    recompensa_total: Optional[float]
-    volumen_total: Optional[float]
+    id: Optional[str] = None
+    numero_bloque: Optional[int] = None
+    hash: Optional[str] = None
+    fecha: Optional[str] = None
+    recompensa_total: Optional[float] = None
+    volumen_total: Optional[float] = None
 
 class TrazaItem(BaseModel):
     hash: str

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Network } from "vis-network"
 import { Loader2 } from "lucide-react"
+import { Search } from "lucide-react"
 
 export default function AnalisisGraph() {
   const containerRef = useRef(null)
@@ -168,20 +169,51 @@ export default function AnalisisGraph() {
       {/* 📊 Panel lateral */}
       <div className="space-y-6">
         {/* Detalles de nodo */}
-        <div className="bg-white rounded-lg shadow-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Detalles</h3>
-          {selectedNode ? (
-            <div className="text-sm text-gray-700 space-y-1">
-              <p><strong>ID:</strong> {selectedNode.id}</p>
-              <p><strong>Tipo:</strong> {selectedNode.group}</p>
-              <p><strong>Info:</strong> {selectedNode.title}</p>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">
-              Haz clic en un nodo para ver sus detalles
-            </p>
-          )}
-        </div>
+          <div className="bg-white rounded-2xl shadow-lg p-5 border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <Search className="w-5 h-5 text-blue-600" /> Detalles del nodo
+            </h3>
+
+            {selectedNode ? (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Dirección</p>
+                  <p className="font-mono text-[13px] bg-gray-100 rounded-md p-2 break-all">
+                    {selectedNode.id}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500 text-xs">Tipo de vínculo</p>
+                  <p
+                    className={`font-semibold ${
+                      selectedNode.group === "dominio_compartido"
+                        ? "text-blue-600"
+                        : selectedNode.group === "wallet_compartida"
+                        ? "text-green-600"
+                        : selectedNode.group === "categoria_compartida"
+                        ? "text-orange-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {selectedNode.group.replace("_", " ")}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-gray-500 text-xs">Descripción</p>
+                  <p className="text-gray-700">
+                    {selectedNode.title?.replace(/\(.*\)/, "").trim() || "Sin descripción"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm italic">
+                Selecciona un nodo en el grafo para ver su información.
+              </p>
+            )}
+          </div>
+
 
         {/* Leyenda */}
         <div className="bg-white rounded-lg shadow-lg p-4">

@@ -7,8 +7,8 @@ from app.services.reporte import fetch_reportes_by_address
 from app.services.transaccion import fetch_and_save_transactions_by_address
 from datetime import datetime
 
-async def obtener_todas_las_trazas():
-    transacciones = await transaccion_collection.find({}).to_list(500)
+async def obtener_todas_las_trazas(limit: int = 30):
+    transacciones = await transaccion_collection.find({}).limit(limit).to_list(limit)
     trazas = []
 
     for tx in transacciones:
@@ -31,7 +31,18 @@ async def obtener_todas_las_trazas():
             reportes = await fetch_reportes_by_address(direccion_ref) if direccion_ref else []
         except Exception as e:
             print(f"⚠️ Error al obtener reportes para {direccion_ref}: {e}")
-            reportes = await reporte_collection.find({"id_direccion": direccion_ref}).to_list(50)
+
+            # 🔍 Buscar dirección real si direccion_ref es ObjectId
+            direccion_str = None
+            if isinstance(direccion_ref, PyObjectId):
+                direccion_doc_ref = await direccion_collection.find_one({"_id": direccion_ref})
+                if direccion_doc_ref:
+                    direccion_str = direccion_doc_ref.get("direccion")
+
+            # ✅ Fallback: buscar en Mongo por dirección (string)
+            query_id = direccion_str or direccion_ref
+            reportes = await reporte_collection.find({"id_direccion": query_id}).to_list(50)
+            print(f"✅ TRAIGO DESDE BD para la dirección {query_id}, reportes={len(reportes)}")
 
         categorias_chainabuse = list({
             r.scamCategory.upper() for r in reportes if hasattr(r, "scamCategory")
@@ -128,12 +139,13 @@ async def obtener_trazas_por_direccion(direccion_str: str, saltos: int = 3, limi
         ]
     }).sort("fecha", -1).limit(limit).to_list(limit)
 
-    # 4️⃣ Obtener reportes ChainAbuse
+    # 4️⃣ Obtener reportes ChainAbuse (con fallback a BD)
     try:
         reportes = await fetch_reportes_by_address(direccion_str)
     except Exception as e:
         print(f"⚠️ Error al obtener reportes para {direccion_str}: {e}")
         reportes = await reporte_collection.find({"id_direccion": direccion_str}).to_list(50)
+        print(f"✅ TRAIGO DESDE BD para la dirección {direccion_str}, reportes={len(reportes)}")
 
     categorias_chainabuse = list({r.scamCategory.upper() for r in reportes if hasattr(r, "scamCategory")})
     dominios = list({d for r in reportes for d in getattr(r, "domains", []) if d})
