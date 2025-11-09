@@ -101,6 +101,17 @@ async def fetch_reportes_by_address(address: str) -> List[Reporte]:
     return saved_reportes
 
 
+# 🔹 Nueva función: Obtener reportes sin consultar API
+async def get_reportes_from_db_only(address: str) -> List[Reporte]:
+    """
+    Obtiene reportes SOLO de la base de datos, sin consultar la API.
+    Útil para evitar rate limits.
+    """
+    reportes_cursor = reporte_collection.find({"id_direccion": address})
+    reportes_list = await reportes_cursor.to_list(length=1000)
+    return [Reporte(**reporte) for reporte in reportes_list]
+
+
 # =====================================================
 # 🔹 GENERACIÓN DE ARCHIVOS DE REPORTE
 # =====================================================
@@ -119,28 +130,100 @@ def _crear_pdf(nombre_archivo: str, titulo: str, lineas: list[str]):
         y -= 20
         if y < 50:
             c.showPage()
+            c.setFont("Helvetica", 11)
             y = height - 80
     c.save()
     return path
 
 
 # 🧩 Reporte de Riesgo por Dirección (PDF / Word / CSV)
-async def generar_reporte_riesgo(address: str, formato: str = "PDF") -> str:
-    reportes = await fetch_reportes_by_address(address)
-    if not reportes:
-        lineas = [f"No se encontraron reportes para la dirección {address}."]
+async def generar_reporte_riesgo(address: str, formato: str = "PDF", force_api: bool = False) -> str:
+    """
+    Genera un reporte de riesgo para una dirección.
+    
+    Args:
+        address: Dirección a analizar
+        formato: PDF, WORD o CSV
+        force_api: Si True, intenta consultar la API aunque falle. Si False, usa solo BD.
+    """
+    reportes = []
+    api_error = None
+    
+    if force_api:
+        # Modo: Intentar API (puede fallar con rate limit)
+        try:
+            print(f"🔄 Intentando obtener datos desde API...")
+            reportes = await fetch_reportes_by_address(address)
+        except Exception as e:
+            api_error = str(e)
+            print(f"⚠️ Error al consultar API: {api_error}")
+            print(f"📂 Obteniendo datos solo de BD...")
+            reportes = await get_reportes_from_db_only(address)
     else:
-        lineas = [f"Reporte de Riesgo para {address}", ""]
-        for r in reportes:
-            lineas.append(f"- Categoría: {r.scamCategory}")
-            lineas.append(f"  Fecha: {r.createdAt.strftime('%Y-%m-%d')}")
-            lineas.append(f"  Confianza: {'Sí' if r.trusted else 'No'}")
+        # Modo: Solo BD (predeterminado, más seguro)
+        print(f"📂 Obteniendo reportes solo de BD (sin consultar API)...")
+        reportes = await get_reportes_from_db_only(address)
+    
+    # Construir contenido del reporte
+    if not reportes:
+        lineas = [
+            f"Reporte de Riesgo para: {address}",
+            "",
+            "━" * 60,
+            "RESULTADO DEL ANÁLISIS",
+            "━" * 60,
+            "",
+            "✓ No se encontraron reportes de scam para esta dirección.",
+            "",
+            "Esto puede significar que:",
+            "  • La dirección no ha sido reportada en ChainAbuse",
+            "  • No hay datos disponibles en nuestra base de datos",
+            "",
+        ]
+        if api_error and "límite" in api_error.lower():
+            lineas.extend([
+                "⚠ NOTA: No se pudo consultar la API de ChainAbuse debido a",
+                "  límite de consultas. Se usaron solo datos en caché.",
+                "",
+            ])
+    else:
+        lineas = [
+            f"Reporte de Riesgo para: {address}",
+            "",
+            "━" * 60,
+            f"RESUMEN: {len(reportes)} reporte(s) encontrado(s)",
+            "━" * 60,
+            "",
+        ]
+        
+        for idx, r in enumerate(reportes, 1):
+            lineas.append(f"REPORTE #{idx}")
+            lineas.append(f"  Categoría: {r.scamCategory}")
+            lineas.append(f"  Fecha: {r.createdAt.strftime('%Y-%m-%d %H:%M')}")
+            lineas.append(f"  Verificado: {'Sí' if r.trusted else 'No'}")
             if r.domains:
-                lineas.append(f"  Dominios: {', '.join(r.domains)}")
+                lineas.append(f"  Dominios asociados: {', '.join(r.domains)}")
             lineas.append("")
+        
+        if api_error and "límite" in api_error.lower():
+            lineas.extend([
+                "━" * 60,
+                "⚠ ADVERTENCIA",
+                "━" * 60,
+                "No se pudo verificar con la API de ChainAbuse debido a límite",
+                "de consultas. Este reporte usa datos en caché de la BD.",
+                "",
+            ])
+    
+    # Agregar footer
+    lineas.extend([
+        "━" * 60,
+        f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "Sistema de Trazabilidad Blockchain",
+    ])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    nombre_base = f"riesgo_{address}_{timestamp}"
+    nombre_base = f"riesgo_{address[:12]}_{timestamp}"
 
     # === PDF ===
     if formato.upper() == "PDF":
@@ -161,13 +244,22 @@ async def generar_reporte_riesgo(address: str, formato: str = "PDF") -> str:
     # === CSV ===
     elif formato.upper() == "CSV":
         data = []
-        for r in reportes:
+        if reportes:
+            for r in reportes:
+                data.append({
+                    "direccion": r.id_direccion,
+                    "categoria": r.scamCategory,
+                    "fecha": r.createdAt.strftime("%Y-%m-%d"),
+                    "verificado": "Sí" if r.trusted else "No",
+                    "dominios": ", ".join(r.domains or []),
+                })
+        else:
             data.append({
-                "direccion": r.id_direccion,
-                "categoria": r.scamCategory,
-                "fecha": r.createdAt.strftime("%Y-%m-%d"),
-                "confianza": "Sí" if r.trusted else "No",
-                "dominios": ", ".join(r.domains or []),
+                "direccion": address,
+                "categoria": "Sin reportes",
+                "fecha": datetime.now().strftime("%Y-%m-%d"),
+                "verificado": "N/A",
+                "dominios": "N/A",
             })
         df = pd.DataFrame(data)
         nombre = f"{nombre_base}.csv"
@@ -175,20 +267,21 @@ async def generar_reporte_riesgo(address: str, formato: str = "PDF") -> str:
         df.to_csv(path, index=False)
 
     else:
-        raise ValueError(f"Formato '{formato}' no soportado. Usa PDF, Word o CSV.")
+        raise ValueError(f"Formato '{formato}' no soportado. Usa PDF, WORD o CSV.")
 
     # 🧾 Guardar en la base de datos la referencia
     await reporte_collection.insert_one({
         "tipo": "riesgo",
         "id_direccion": address,
-        "filename": nombre,
+        "filename": os.path.basename(path),
         "path": path,
         "formato": formato.upper(),
         "createdAt": datetime.now(),
+        "reportes_count": len(reportes),
+        "api_error": api_error,
     })
 
     return path
-
 
 
 # 📊 Reporte de Actividad por Período (CSV)
@@ -215,9 +308,17 @@ async def generar_reporte_actividad(fecha_inicio: str, fecha_fin: str) -> str:
 async def generar_reporte_clusters() -> str:
     lineas = [
         "Análisis de agrupaciones entre direcciones sospechosas.",
+        "",
+        "━" * 60,
+        "CLUSTERS IDENTIFICADOS",
+        "━" * 60,
+        "",
         "• Cluster #1: 5 direcciones conectadas.",
         "• Cluster #2: 3 direcciones (2 reportadas en ChainAbuse).",
         "• Cluster #3: 8 direcciones vinculadas a dominio sin KYC.",
+        "",
+        "━" * 60,
+        f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
     ]
     nombre = f"clusters_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     path = _crear_pdf(nombre, "Reporte de Clusters y Redes", lineas)
