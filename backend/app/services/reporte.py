@@ -318,27 +318,90 @@ async def generar_reporte_actividad(fecha_inicio: str, fecha_fin: str, formato: 
 
 
 # 🕸️ Reporte de Clusters
-async def generar_reporte_clusters() -> str:
-    lineas = [
-        "Análisis de agrupaciones entre direcciones sospechosas.",
-        "",
-        "━" * 60,
-        "CLUSTERS IDENTIFICADOS",
-        "━" * 60,
-        "",
-        "• Cluster #1: 5 direcciones conectadas.",
-        "• Cluster #2: 3 direcciones (2 reportadas).",
-        "• Cluster #3: 8 direcciones vinculadas a dominio sin KYC.",
-        "",
-        f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-    ]
-    nombre = f"clusters_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    path = _crear_pdf(nombre, "Reporte de Clusters y Redes", lineas)
+async def generar_reporte_clusters(formato: str = "PDF") -> str:
+    """
+    Genera un reporte de agrupaciones y conexiones entre direcciones.
+    Agrupa las direcciones conectadas por transacciones compartidas.
+    """
+    
+    print(f"🕸 Generando reporte de clusters (formato: {formato})")
 
+    # 1️⃣ Obtener todas las transacciones
+    transacciones = await transaccion_collection.find().to_list(length=10000)
+
+    if not transacciones:
+        clusters = [{"cluster_id": 1, "direcciones": 0, "conexiones": 0, "reportadas": 0}]
+    else:
+        # 2️⃣ Construir clusters simples (ejemplo: agrupar por direcciones que aparecen juntas)
+        clusters = []
+        id_cluster = 1
+
+        for tx in transacciones:
+            direcciones = list(set(tx.get("inputs", []) + tx.get("outputs", [])))
+            if not direcciones:
+                continue
+            clusters.append({
+                "cluster_id": id_cluster,
+                "direcciones": len(direcciones),
+                "conexiones": len(tx.get("outputs", [])),
+                "reportadas": sum(1 for d in direcciones if "report" in str(d).lower()),  # ejemplo simple
+            })
+            id_cluster += 1
+
+    # 3️⃣ Crear PDF o CSV
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nombre_base = f"clusters_{timestamp}"
+
+    if formato.upper() == "PDF":
+        nombre_archivo = f"{nombre_base}.pdf"
+        path = os.path.join(GENERATED_PATH, nombre_archivo)
+        c = canvas.Canvas(path, pagesize=A4)
+        width, height = A4
+        y = height - 80
+
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(60, y, "Reporte de Clusters y Redes")
+        y -= 30
+        c.setFont("Helvetica", 12)
+        c.drawString(60, y, "Análisis de agrupaciones entre direcciones sospechosas")
+        y -= 40
+        c.setFont("Helvetica", 10)
+
+        for cluster in clusters[:40]:  # limitar líneas por página
+            linea = (
+                f"Cluster #{cluster['cluster_id']} | Direcciones: {cluster['direcciones']} "
+                f"| Conexiones: {cluster['conexiones']} | Reportadas: {cluster['reportadas']}"
+            )
+            c.drawString(60, y, linea)
+            y -= 18
+            if y < 50:
+                c.showPage()
+                c.setFont("Helvetica", 10)
+                y = height - 80
+
+        y -= 20
+        c.setFont("Helvetica-Oblique", 9)
+        c.drawString(60, y, f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        c.save()
+
+    elif formato.upper() == "CSV":
+        nombre_archivo = f"{nombre_base}.csv"
+        path = os.path.join(GENERATED_PATH, nombre_archivo)
+        pd.DataFrame(clusters).to_csv(path, index=False)
+
+    else:
+        raise ValueError("Formato no soportado. Usa PDF o CSV.")
+
+    # 4️⃣ Guardar registro
     await reporte_collection.insert_one({
         "tipo": "clusters",
-        "filename": nombre,
+        "filename": nombre_archivo,
         "path": path,
-        "createdAt": datetime.now()
+        "createdAt": datetime.now(),
+        "formato": formato.upper(),
+        "total_clusters": len(clusters),
     })
+
+    print(f"✅ Reporte de clusters generado: {path}")
     return path
+

@@ -71,13 +71,10 @@ async def generar_actividad(
 
 
 @router.post("/generar/clusters/")
-async def generar_clusters():
-    """Genera un reporte de clusters y redes (PDF) sin requerir autenticación."""
-    path = await generar_reporte_clusters()
-
+async def generar_clusters(formato: str = Query("PDF")):
+    path = await generar_reporte_clusters(formato)
     if not os.path.exists(path):
         raise HTTPException(status_code=500, detail="Error al crear el archivo")
-
     filename = os.path.basename(path)
     return {
         "status": "ok",
@@ -85,6 +82,7 @@ async def generar_clusters():
         "filename": filename,
         "download_url": f"/reportes/download/{filename}",
     }
+
 
 
 # =====================================================
