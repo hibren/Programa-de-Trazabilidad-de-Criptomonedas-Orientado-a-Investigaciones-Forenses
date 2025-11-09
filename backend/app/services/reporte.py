@@ -103,13 +103,17 @@ async def fetch_reportes_by_address(address: str) -> List[Reporte]:
 
 # 🔹 Nueva función: Obtener reportes sin consultar API
 async def get_reportes_from_db_only(address: str) -> List[Reporte]:
-    """
-    Obtiene reportes SOLO de la base de datos, sin consultar la API.
-    Útil para evitar rate limits.
-    """
     reportes_cursor = reporte_collection.find({"id_direccion": address})
     reportes_list = await reportes_cursor.to_list(length=1000)
-    return [Reporte(**reporte) for reporte in reportes_list]
+
+    reportes_validos = []
+    for r in reportes_list:
+        # 🔹 Evitar los documentos internos de tipo 'riesgo' sin scamCategory
+        if "scamCategory" in r and "trusted" in r and "domains" in r:
+            reportes_validos.append(Reporte(**r))
+
+    return reportes_validos
+
 
 
 # =====================================================
