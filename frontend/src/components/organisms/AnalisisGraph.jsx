@@ -1,35 +1,29 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { Network } from "vis-network"
 import { Loader2 } from "lucide-react"
-import { Search } from "lucide-react"
 
 export default function AnalisisGraph() {
   const containerRef = useRef(null)
   const [selectedNode, setSelectedNode] = useState(null)
   const [loading, setLoading] = useState(true)
-  const { token } = useAuth()
 
   const API = "http://localhost:8000"
 
-  // 🔧 Función segura para crear el grafo cuando el contenedor esté montado
+  // 🔧 Render seguro del grafo
   const renderNetworkSafely = (data, options) => {
     const container = containerRef.current
     if (!container) {
       console.warn("Contenedor del grafo aún no disponible. Reintentando...")
-      // Reintentar una vez después de 200 ms
       setTimeout(() => renderNetworkSafely(data, options), 200)
       return
     }
 
-    // Esperar un tick para asegurarse de que el div esté montado
     setTimeout(() => {
       try {
         const network = new Network(container, data, options)
 
-        // Evento de click sobre nodos
         network.on("click", (params) => {
           if (params.nodes.length > 0) {
             const nodeId = params.nodes[0]
@@ -47,28 +41,54 @@ export default function AnalisisGraph() {
 
   useEffect(() => {
     const cargarRelaciones = async () => {
-      if (!token) {
-        console.warn("No hay token, saltando carga de relaciones.")
-        setLoading(false)
-        return
-      }
-
       try {
-        // 1️⃣ Detectar nuevas relaciones automáticamente
-        await fetch(`${API}/relaciones/detectar`, {
+        // 🔑 Obtener token del localStorage (ajusta si usas useAuth)
+        const token = localStorage.getItem("token")
+        if (!token) {
+          console.warn("⚠️ No hay token disponible. Inicia sesión.")
+          setLoading(false)
+          return
+        }
+
+        // 1️⃣ Detectar relaciones (no bloqueante)
+        fetch(`${API}/relaciones/detectar/`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
+          },
+        }).catch(() =>
+          console.warn("No se pudo detectar relaciones nuevas (no bloqueante)")
+        )
+
+        // 2️⃣ Obtener relaciones actuales
+        const res = await fetch(`${API}/relaciones/`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
           },
         })
 
-        // 2️⃣ Luego traer las relaciones actuales
-        const res = await fetch(`${API}/relaciones`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        })
-        const relaciones = await res.json()
+        if (!res.ok) {
+          console.error("❌ Error HTTP:", res.status, res.statusText)
+          setLoading(false)
+          return
+        }
+
+        // 3️⃣ Parsear respuesta
+        let data
+        try {
+          data = await res.json()
+        } catch (e) {
+          console.error("❌ No se pudo parsear JSON:", e)
+          setLoading(false)
+          return
+        }
+
+        const relaciones = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : []
 
         if (!Array.isArray(relaciones) || relaciones.length === 0) {
           console.warn("⚠️ No se encontraron relaciones en la base de datos.")
@@ -76,22 +96,25 @@ export default function AnalisisGraph() {
           return
         }
 
-        // 3️⃣ Construir nodos y aristas
+        // 4️⃣ Construir nodos y aristas
         const nodosMap = new Map()
         const edgesTemp = []
         const colorMap = {
-          dominio_compartido: "#3b82f6", // azul
-          wallet_compartida: "#22c55e",  // verde
-          categoria_compartida: "#f97316", // naranja
+          dominio_compartido: "#3b82f6",
+          wallet_compartida: "#22c55e",
+          categoria_compartida: "#f97316",
+          transaccion_compartida: "#9333ea",
         }
 
         relaciones.forEach((rel) => {
+          if (!rel || typeof rel !== "object") return
           const { direccion_origen, direccion_destino, tipo_vinculo, valor } = rel
+          if (!direccion_origen || !direccion_destino) return
 
           if (!nodosMap.has(direccion_origen)) {
             nodosMap.set(direccion_origen, {
               id: direccion_origen,
-              label: direccion_origen.substring(0, 10) + "...",
+              label: direccion_origen.slice(0, 10) + "...",
               title: `Origen (${tipo_vinculo})`,
               group: tipo_vinculo,
               value: 20,
@@ -101,7 +124,7 @@ export default function AnalisisGraph() {
           if (!nodosMap.has(direccion_destino)) {
             nodosMap.set(direccion_destino, {
               id: direccion_destino,
-              label: direccion_destino.substring(0, 10) + "...",
+              label: direccion_destino.slice(0, 10) + "...",
               title: `Destino (${tipo_vinculo})`,
               group: tipo_vinculo,
               value: 20,
@@ -111,13 +134,16 @@ export default function AnalisisGraph() {
           edgesTemp.push({
             from: direccion_origen,
             to: direccion_destino,
-            label: valor,
+            label: valor || "",
             arrows: "to",
             color: { color: colorMap[tipo_vinculo] || "#9ca3af" },
           })
         })
 
-        const data = { nodes: Array.from(nodosMap.values()), edges: edgesTemp }
+        const dataVis = {
+          nodes: Array.from(nodosMap.values()),
+          edges: edgesTemp,
+        }
 
         const options = {
           layout: { improvedLayout: true },
@@ -132,11 +158,11 @@ export default function AnalisisGraph() {
             dominio_compartido: { color: { background: "#3b82f6", border: "#1e40af" } },
             wallet_compartida: { color: { background: "#22c55e", border: "#15803d" } },
             categoria_compartida: { color: { background: "#f97316", border: "#9a3412" } },
+            transaccion_compartida: { color: { background: "#9333ea", border: "#581c87" } },
           },
         }
 
-        // 4️⃣ Renderizar grafo de forma segura
-        renderNetworkSafely(data, options)
+        renderNetworkSafely(dataVis, options)
       } catch (error) {
         console.error("❌ Error al cargar grafo:", error)
       } finally {
@@ -145,11 +171,10 @@ export default function AnalisisGraph() {
     }
 
     cargarRelaciones()
-  }, [token])
+  }, [])
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* 🧠 Grafo principal */}
       <div className="lg:col-span-2">
         <div className="bg-white rounded-lg shadow-lg p-4">
           {loading ? (
@@ -158,78 +183,45 @@ export default function AnalisisGraph() {
               Cargando relaciones...
             </div>
           ) : (
-            <div
-              ref={containerRef}
-              className="w-full h-[600px] border rounded bg-[#0f172a]"
-            />
+            <div ref={containerRef} className="w-full h-[600px] border rounded bg-[#0f172a]" />
           )}
         </div>
       </div>
 
-      {/* 📊 Panel lateral */}
       <div className="space-y-6">
-        {/* Detalles de nodo */}
-          <div className="bg-white rounded-2xl shadow-lg p-5 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Search className="w-5 h-5 text-blue-600" /> Detalles del nodo
-            </h3>
+        <div className="bg-white rounded-lg shadow-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Detalles</h3>
+          {selectedNode ? (
+            <div className="text-sm text-gray-700 space-y-1">
+              <p><strong>ID:</strong> {selectedNode.id}</p>
+              <p><strong>Tipo:</strong> {selectedNode.group}</p>
+              <p><strong>Info:</strong> {selectedNode.title}</p>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">
+              Haz clic en un nodo para ver sus detalles
+            </p>
+          )}
+        </div>
 
-            {selectedNode ? (
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-gray-500 text-xs">Dirección</p>
-                  <p className="font-mono text-[13px] bg-gray-100 rounded-md p-2 break-all">
-                    {selectedNode.id}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-gray-500 text-xs">Tipo de vínculo</p>
-                  <p
-                    className={`font-semibold ${
-                      selectedNode.group === "dominio_compartido"
-                        ? "text-blue-600"
-                        : selectedNode.group === "wallet_compartida"
-                        ? "text-green-600"
-                        : selectedNode.group === "categoria_compartida"
-                        ? "text-orange-600"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    {selectedNode.group.replace("_", " ")}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-gray-500 text-xs">Descripción</p>
-                  <p className="text-gray-700">
-                    {selectedNode.title?.replace(/\(.*\)/, "").trim() || "Sin descripción"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm italic">
-                Selecciona un nodo en el grafo para ver su información.
-              </p>
-            )}
-          </div>
-
-
-        {/* Leyenda */}
         <div className="bg-white rounded-lg shadow-lg p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Leyenda</h3>
           <ul className="space-y-2 text-sm text-gray-700">
             <li className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-blue-500 inline-block"></span>
+              <span className="w-4 h-4 rounded-full bg-blue-500 inline-block" />
               Dominio compartido
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-green-500 inline-block"></span>
+              <span className="w-4 h-4 rounded-full bg-green-500 inline-block" />
               Wallet compartida
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-orange-500 inline-block"></span>
+              <span className="w-4 h-4 rounded-full bg-orange-500 inline-block" />
               Categoría compartida
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded-full bg-purple-600 inline-block" />
+              Transacción compartida
             </li>
           </ul>
         </div>
