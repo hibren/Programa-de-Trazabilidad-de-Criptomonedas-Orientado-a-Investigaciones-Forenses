@@ -1,12 +1,16 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Copy, CheckCircle, AlertTriangle, Shield, Eye, Download, ChevronDown, ChevronUp, ExternalLink, Clock, ArrowRight, Link2, ShieldAlert, Globe2, Coins, FileWarning } from 'lucide-react';
+import { Copy, CheckCircle, AlertTriangle, Shield, Eye, Download, ChevronLeft, ChevronRight, ExternalLink, Clock, ArrowRight } from 'lucide-react';
 
 const TrazabilidadList = () => {
   const [trazas, setTrazas] = useState([]);
   const [trazaActiva, setTrazaActiva] = useState(null);
   const [copiedAddress, setCopiedAddress] = useState(null);
+  
+  // 🆕 ESTADOS DE PAGINACIÓN
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // 🔹 cantidad de trazas por página
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,6 +24,12 @@ const TrazabilidadList = () => {
     };
     fetchData();
   }, []);
+
+  // 🆕 CÁLCULO DE PAGINACIÓN
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const trazasVisibles = trazas.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(trazas.length / itemsPerPage);
 
   const toggleDetalles = (hash) => {
     setTrazaActiva(trazaActiva === hash ? null : hash);
@@ -86,6 +96,15 @@ const TrazabilidadList = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50">
+      {/* Header con info de paginación */}
+      {trazas.length > 0 && (
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Mostrando <span className="font-semibold">{startIndex + 1}</span> a <span className="font-semibold">{Math.min(endIndex, trazas.length)}</span> de <span className="font-semibold">{trazas.length}</span> trazas
+          </div>
+        </div>
+      )}
+
       {/* Lista de trazas */}
       <div className="space-y-4">
         {trazas.length === 0 ? (
@@ -93,7 +112,7 @@ const TrazabilidadList = () => {
             <p className="text-gray-500">No se encontraron trazas.</p>
           </div>
         ) : (
-          trazas.map((trace, index) => (
+          trazasVisibles.map((trace, index) => (
             <div key={index}>
               {/* Card Principal Compacta */}
               <div className="bg-white rounded-lg shadow-md p-6">
@@ -182,10 +201,9 @@ const TrazabilidadList = () => {
                 </div>
               </div>
 
-              {/* Detalles Expandibles - CONTENEDOR PADRE ÚNICO */}
+              {/* Detalles Expandibles */}
               {trazaActiva === trace.hash && (
                 <div className="mt-4 bg-white rounded-lg shadow-md p-4">
-                  {/* Mensaje si no hay detalles */}
                   {!trace.bloque && (!trace.origen || trace.origen.length === 0) && (!trace.destino || trace.destino.length === 0) && (!trace.dominios_asociados || trace.dominios_asociados.length === 0) && (!trace.patrones_sospechosos || trace.patrones_sospechosos.length === 0) ? (
                     <div className="text-center py-4">
                       <p className="text-gray-500 text-sm">Sin detalles adicionales disponibles</p>
@@ -239,7 +257,6 @@ const TrazabilidadList = () => {
                         </div>
                       )}
 
-                      {/* Separador */}
                       {trace.bloque && (trace.origen?.length > 0 || trace.destino?.length > 0) && (
                         <div className="border-t border-gray-200"></div>
                       )}
@@ -272,7 +289,6 @@ const TrazabilidadList = () => {
                               </div>
                             </div>
 
-                            {/* Arrow */}
                             <div className="flex flex-col items-center gap-1">
                               <ArrowRight size={24} className="text-gray-400 rotate-0 md:rotate-0" />
                               <div className="text-xs font-semibold text-gray-500">{trace.monto_total} BTC</div>
@@ -303,7 +319,6 @@ const TrazabilidadList = () => {
                         </div>
                       )}
 
-                      {/* Separador */}
                       {(trace.origen?.length > 0 || trace.destino?.length > 0) && trace.dominios_asociados?.length > 0 && (
                         <div className="border-t border-gray-200"></div>
                       )}
@@ -335,7 +350,6 @@ const TrazabilidadList = () => {
                         </div>
                       )}
 
-                      {/* Separador */}
                       {trace.dominios_asociados?.length > 0 && trace.patrones_sospechosos?.length > 0 && (
                         <div className="border-t border-gray-200"></div>
                       )}
@@ -362,6 +376,35 @@ const TrazabilidadList = () => {
           ))
         )}
       </div>
+
+      {/* 🆕 CONTROLES DE PAGINACIÓN */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-medium text-sm"
+          >
+            <ChevronLeft size={16} />
+            Anterior
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              Página <span className="font-bold text-gray-900">{currentPage}</span> de <span className="font-bold text-gray-900">{totalPages}</span>
+            </span>
+          </div>
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition font-medium text-sm"
+          >
+            Siguiente
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
