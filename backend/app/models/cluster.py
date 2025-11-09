@@ -1,9 +1,8 @@
-from pydantic import BaseModel, Field
-from app.database import PyObjectId
+from pydantic import BaseModel
 from typing import List, Optional
 
 class ClusterModel(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id") #id: str = Field(alias="_id")
+    id: Optional[str]
     direccion: List[str]
     tipo_riesgo: Optional[str] = None
     descripcion: Optional[str] = None
@@ -12,7 +11,5 @@ class ClusterModel(BaseModel):
     updated_to_block: Optional[int] = None
 
     class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {PyObjectId: str}  # 👈 convierte ObjectId → str
         populate_by_name = True
         from_attributes = True

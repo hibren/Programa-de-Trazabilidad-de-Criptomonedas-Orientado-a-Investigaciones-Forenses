@@ -1,26 +1,22 @@
 "use client"
 
-import { Search, TrendingUp, Network, Clock } from "lucide-react"
+import { Search, TrendingUp, Network, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
 import ModalDetalleRastreo from "@/components/molecules/ModalDetalleRastreo"
+import ModalDetalleCluster from "@/components/molecules/ModalDetalleCluster"
 
 // ======================= MODAL DE RESULTADOS =======================
 const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
   if (!isOpen) return null
-  return (
-    <ModalDetalleRastreo
-      isOpen={isOpen}
-      onClose={onClose}
-      data={data}
-    />
-  )
+  return <ModalDetalleRastreo isOpen={isOpen} onClose={onClose} data={data} />
 }
 
 // ======================= COMPONENTE PRINCIPAL =======================
 const AnalisisForenseTools = () => {
   const [form, setForm] = useState({
-    direccionOrigen: "", // Para Análisis de Destino
-    direccionDestino: "", // Para Rastreo de Origen
+    direccionOrigen: "",
+    direccionDestino: "",
+    direccionBase: "",
     profundidad: "3",
     periodo: "7",
     algoritmo: "coincidencia-etiquetas",
@@ -31,86 +27,114 @@ const AnalisisForenseTools = () => {
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  const [isClusterModalOpen, setIsClusterModalOpen] = useState(false)
+  const [resultadoCluster, setResultadoCluster] = useState(null)
+  const [loadingCluster, setLoadingCluster] = useState(false)
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
   }
 
   // ======================= FUNCIÓN PRINCIPAL =======================
-const handleAction = async (tipoAccion) => {
-  try {
-    setLoading(true);
+  const handleAction = async (tipoAccion) => {
+    try {
+      let url = ""
+      let tipo = ""
+      let direccion = ""
+      let params = {}
 
-    let url = "";
-    let tipo = "";
-    let direccion = "";
-    let params = {};
+      // ================== RASTREO DE ORIGEN ==================
+      if (tipoAccion === "origen") {
+        setLoading(true)
+        tipo = "origen"
+        direccion = form.direccionDestino
+        if (!direccion) throw new Error("⚠️ Ingrese una dirección para rastrear el origen.")
 
-    if (tipoAccion === "origen") {
-      tipo = "origen";
-      direccion = form.direccionDestino;
-      params = { direccion, profundidad: form.profundidad || 3 };
-      if (!direccion) {
-        alert("⚠️ Ingrese una dirección para rastrear el origen.");
-        return; // Salir temprano
+        params = { direccion, profundidad: form.profundidad || 3 }
+        url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`
       }
-      url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`;
-    }
-    else if (tipoAccion === "destino") {
-      tipo = "destino";
-      direccion = form.direccionOrigen;
-      params = { direccion, dias: form.periodo || 7 };
-      if (!direccion) {
-        alert("⚠️ Ingrese una dirección para analizar destinos.");
-        return; // Salir temprano
+
+      // ================== ANÁLISIS DE DESTINO ==================
+      else if (tipoAccion === "destino") {
+        setLoading(true)
+        tipo = "destino"
+        direccion = form.direccionOrigen
+        if (!direccion) throw new Error("⚠️ Ingrese una dirección para analizar destinos.")
+
+        params = { direccion, dias: form.periodo || 7 }
+        url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`
       }
-      url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`;
+
+      // ================== DETECCIÓN DE CLUSTERS ==================
+      else if (tipoAccion === "cluster") {
+        setLoadingCluster(true)
+        const direccionBase = form.direccionBase
+        if (!direccionBase) throw new Error("⚠️ Ingrese una dirección base para detectar el cluster.")
+
+        const algoritmo = form.algoritmo || "coincidencia-etiquetas"
+        const clusterUrl = `http://localhost:8000/clusters/detectar?direccion=${direccionBase}&algoritmo=${algoritmo}`
+
+        console.log(`🌐 Solicitando cluster → ${clusterUrl}`)
+        const res = await fetch(clusterUrl)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || "Error en detección de cluster")
+
+        console.log("✅ Cluster detectado:", data)
+        setResultadoCluster({ ...data, algoritmo })
+        setIsClusterModalOpen(true)
+        return
+      }
+
+      // ================== ACCIÓN NO IMPLEMENTADA ==================
+      else {
+        alert(`🔍 Acción "${tipoAccion}" aún no implementada.`)
+        return
+      }
+
+      console.log(`🌐 Solicitando → ${url}`)
+      const response = await fetch(url, { method: "POST" })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || response.statusText)
+
+      console.log("✅ Datos recibidos:", data)
+
+      const conexiones = Array.isArray(data.resultado) ? data.resultado : []
+      const trazaFormateada = {
+        direccion: data.direccion_inicial,
+        tipo,
+        actividad: tipo === "destino" ? "Análisis de Destino" : "Rastreo de Origen",
+        cantidad_reportes: data.total_conexiones,
+        conexiones,
+        fecha_analisis: data.fecha_analisis,
+      }
+
+      setResultadoRastreo(trazaFormateada)
+      setIsModalOpen(true)
+    } catch (error) {
+      console.error("❌ Error al procesar:", error)
+      alert(error.message)
+    } finally {
+      setLoading(false)
+      setLoadingCluster(false)
     }
-    else {
-      // Para "Detección de Clusters" y "Análisis Temporal"
-      alert(`🔍 Acción "${tipoAccion}" aún no implementada.\n${JSON.stringify(form, null, 2)}`);
-      return;
-    }
-
-    console.log(`🌐 Solicitando → ${url}`);
-
-    const response = await fetch(url, { method: "POST" });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Error HTTP ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log("✅ Datos recibidos:", data);
-
-    const conexiones = Array.isArray(data.resultado) ? data.resultado : [];
-    const trazaFormateada = {
-      direccion: data.direccion_inicial,
-      tipo,
-      actividad: tipo === "destino" ? "Análisis de Destino" : "Rastreo de Origen",
-      cantidad_reportes: data.total_conexiones,
-      conexiones,
-      fecha_analisis: data.fecha_analisis,
-    };
-
-    setResultadoRastreo(trazaFormateada);
-    setIsModalOpen(true);
-  } catch (error) {
-    console.error("Error al procesar el análisis:", error);
-    alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`);
-  } finally {
-    setLoading(false);
   }
-};
 
   // ======================= UI =======================
   return (
     <>
-      {/* MODAL DE RESULTADOS */}
+      {/* MODAL DE RESULTADOS DE RASTREO */}
       <ResultadoRastreoModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         data={resultadoRastreo}
+      />
+
+      {/* MODAL DE RESULTADOS DE CLUSTER */}
+      <ModalDetalleCluster
+        isOpen={isClusterModalOpen}
+        onClose={() => setIsClusterModalOpen(false)}
+        data={resultadoCluster}
       />
 
       <div className="bg-gray-50 min-h-screen p-6">
@@ -168,15 +192,18 @@ const handleAction = async (tipoAccion) => {
                 loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <Search className="h-4 w-4" />
-              {loading ? "Cargando..." : "Iniciar Rastreo"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  Iniciar Rastreo
+                </>
+              )}
             </button>
-
-            {resultadoRastreo && resultadoRastreo.tipo === "origen" && (
-              <p className="text-sm text-gray-600 mt-3">
-                🔍 Conexiones encontradas: {resultadoRastreo?.conexiones?.length || 0}
-              </p>
-            )}
           </div>
 
           {/* ==================== Análisis de Destino ==================== */}
@@ -189,9 +216,7 @@ const handleAction = async (tipoAccion) => {
               Rastrea hacia dónde se dirigen los fondos desde una dirección específica
             </p>
 
-            <label className="block text-sm text-gray-700 mb-1">
-              Dirección de Origen
-            </label>
+            <label className="block text-sm text-gray-700 mb-1">Dirección de Origen</label>
             <input
               type="text"
               name="direccionOrigen"
@@ -215,21 +240,24 @@ const handleAction = async (tipoAccion) => {
             </select>
 
             <button
-              onClick={() => handleAction("Análisis de Destino")}
+              onClick={() => handleAction("destino")}
               disabled={loading}
               className={`w-full ${
                 loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <TrendingUp className="h-4 w-4" />
-              {loading ? "Cargando..." : "Analizar Destinos"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="h-4 w-4" />
+                  Analizar Destinos
+                </>
+              )}
             </button>
-
-            {resultadoRastreo && resultadoRastreo.tipo === "destino" && (
-              <p className="text-sm text-gray-600 mt-3">
-                📈 Conexiones encontradas: {resultadoRastreo?.conexiones?.length || 0}
-              </p>
-            )}
           </div>
 
           {/* ==================== Detección de Clusters ==================== */}
@@ -265,11 +293,24 @@ const handleAction = async (tipoAccion) => {
 
             <button
               onClick={() => handleAction("cluster")}
-              disabled={true}
-              className="w-full bg-gray-400 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium cursor-not-allowed"
+              disabled={loadingCluster}
+              className={`w-full ${
+                loadingCluster
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-green-700 hover:bg-green-800"
+              } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <Network className="h-4 w-4" />
-              Detectar Cluster
+              {loadingCluster ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Detectando...
+                </>
+              ) : (
+                <>
+                  <Network className="h-4 w-4" />
+                  Detectar Cluster
+                </>
+              )}
             </button>
           </div>
 
