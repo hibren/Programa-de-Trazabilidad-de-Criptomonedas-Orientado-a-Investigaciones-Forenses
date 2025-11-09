@@ -4,6 +4,7 @@ import { Search, TrendingUp, Network, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
 import ModalDetalleRastreo from "@/components/molecules/ModalDetalleRastreo"
 import ModalDetalleCluster from "@/components/molecules/ModalDetalleCluster"
+import ModalAnalisisTemporal from "@/components/molecules/ModalAnalisisTemporal" // 🆕 nuevo modal
 
 // ======================= MODAL DE RESULTADOS =======================
 const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
@@ -17,6 +18,7 @@ const AnalisisForenseTools = () => {
     direccionOrigen: "",
     direccionDestino: "",
     direccionBase: "",
+    direcciones: "",
     profundidad: "3",
     periodo: "7",
     algoritmo: "coincidencia-etiquetas",
@@ -27,6 +29,8 @@ const AnalisisForenseTools = () => {
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
   const [isClusterModalOpen, setIsClusterModalOpen] = useState(false)
   const [resultadoCluster, setResultadoCluster] = useState(null)
+  const [isTemporalModalOpen, setIsTemporalModalOpen] = useState(false) // 🆕
+  const [resultadoTemporal, setResultadoTemporal] = useState(null) // 🆕
   const [loadingAction, setLoadingAction] = useState(null)
   const [loadingCluster, setLoadingCluster] = useState(false)
 
@@ -84,7 +88,41 @@ const AnalisisForenseTools = () => {
         setResultadoCluster(data)
         setIsClusterModalOpen(true)
         return
-      } else {
+      } 
+      // 🆕 NUEVA SECCIÓN - ANÁLISIS TEMPORAL
+      else if (tipoAccion === "temporal") {
+        const direcciones = form.direcciones
+          .split(",")
+          .map((d) => d.trim())
+          .filter((d) => d.length > 0)
+        const ventana = form.ventana || "24h"
+
+        if (direcciones.length === 0) {
+          alert("⚠️ Ingrese al menos una dirección para analizar.")
+          return
+        }
+
+        console.log("🕒 Enviando análisis temporal:", { direcciones, ventana })
+
+        const response = await fetch("http://localhost:8000/patrones/temporales", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ direcciones, ventana }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || "Error en análisis temporal")
+        }
+
+        const data = await response.json()
+        console.log("✅ Resultado del análisis temporal:", data)
+
+        setResultadoTemporal(data)
+        setIsTemporalModalOpen(true)
+        return
+      } 
+      else {
         alert(`🔍 Acción "${tipoAccion}" aún no implementada.`)
         return
       }
@@ -130,6 +168,13 @@ const AnalisisForenseTools = () => {
         isOpen={isClusterModalOpen}
         onClose={() => setIsClusterModalOpen(false)}
         data={resultadoCluster}
+      />
+
+      {/* 🆕 MODAL DE RESULTADOS TEMPORALES */}
+      <ModalAnalisisTemporal
+        isOpen={isTemporalModalOpen}
+        onClose={() => setIsTemporalModalOpen(false)}
+        data={resultadoTemporal}
       />
 
       <div className="bg-gray-50 min-h-screen p-6">
@@ -344,11 +389,24 @@ const AnalisisForenseTools = () => {
 
             <button
               onClick={() => handleAction("temporal")}
-              disabled={true}
-              className="w-full bg-gray-400 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium cursor-not-allowed"
+              disabled={loadingAction === "temporal"}
+              className={`w-full ${
+                loadingAction === "temporal"
+                  ? "bg-green-400 cursor-not-allowed"
+                  : "bg-green-700 hover:bg-green-800"
+              } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              <Clock className="h-4 w-4" />
-              Analizar Patrones
+              {loadingAction === "temporal" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analizando...
+                </>
+              ) : (
+                <>
+                  <Clock className="h-4 w-4" />
+                  Analizar Patrones
+                </>
+              )}
             </button>
           </div>
         </div>
