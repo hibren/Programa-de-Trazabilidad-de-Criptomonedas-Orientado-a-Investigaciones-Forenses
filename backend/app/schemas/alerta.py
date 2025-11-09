@@ -1,25 +1,20 @@
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime
-from typing import List
-from pydantic import BaseModel, Field
-from app.database import PyObjectId
 
-class AlertaBaseSchema(BaseModel):
+class AlertaCreate(BaseModel):
+    direccion: str
     tipo_alerta: str
     nivel_riesgo: str
-    transacciones: List[PyObjectId]
-    cluster: PyObjectId
+    transacciones: Optional[List[str]] = []
+    cluster: Optional[str] = None
 
-class AlertaCreateSchema(AlertaBaseSchema):
-    pass
 
-class AlertaResponseSchema(AlertaBaseSchema):
-    id: PyObjectId = Field(alias="_id")
+class AlertaResponse(BaseModel):
+    id: Optional[str] = None
+    direccion: str
+    tipo_alerta: str
+    nivel_riesgo: str
     fecha: datetime
-
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            PyObjectId: str,
-            datetime: lambda dt: dt.isoformat(),
-        }
-        from_attributes = True
+    transacciones: Optional[List[str]] = []
+    cluster: Optional[str] = None

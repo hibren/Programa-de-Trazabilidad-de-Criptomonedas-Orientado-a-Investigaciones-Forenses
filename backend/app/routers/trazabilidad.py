@@ -3,13 +3,9 @@ from app.services.trazabilidad import obtener_trazas_por_direccion, obtener_toda
 from app.schemas.trazabilidad import TrazabilidadListOut
 
 router = APIRouter(prefix="/trazabilidad", tags=["Trazabilidad"])
-
 @router.get("/trazas", response_model=TrazabilidadListOut)
-async def listar_todas_las_trazas():
-    """
-    Devuelve todas las trazas disponibles en la base de datos.
-    """
-    return await obtener_todas_las_trazas()
+async def listar_todas_las_trazas(limit: int = 50):
+    return await obtener_todas_las_trazas(limit)
 
 @router.get("/trazas/{direccion}")
 async def get_trazas(direccion: str, saltos: int = 3):
