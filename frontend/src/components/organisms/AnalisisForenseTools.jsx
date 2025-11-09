@@ -25,11 +25,7 @@ const AnalisisForenseTools = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const [isClusterModalOpen, setIsClusterModalOpen] = useState(false)
-  const [resultadoCluster, setResultadoCluster] = useState(null)
-  const [loadingCluster, setLoadingCluster] = useState(false)
+  const [loadingAction, setLoadingAction] = useState(null) // Estado para saber qué acción está cargando
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -37,87 +33,64 @@ const AnalisisForenseTools = () => {
   }
 
   // ======================= FUNCIÓN PRINCIPAL =======================
-  const handleAction = async (tipoAccion) => {
-    try {
-      let url = ""
-      let tipo = ""
-      let direccion = ""
-      let params = {}
+const handleAction = async (tipoAccion) => {
+  try {
+    setLoadingAction(tipoAccion);
 
-      // ================== RASTREO DE ORIGEN ==================
-      if (tipoAccion === "origen") {
-        setLoading(true)
-        tipo = "origen"
-        direccion = form.direccionDestino
-        if (!direccion) throw new Error("⚠️ Ingrese una dirección para rastrear el origen.")
+    let url = "";
+    let tipo = "";
+    let direccion = "";
+    let params = {};
 
-        params = { direccion, profundidad: form.profundidad || 3 }
-        url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`
+    if (tipoAccion === "origen") {
+      tipo = "origen";
+      direccion = form.direccionDestino;
+      params = { direccion, profundidad: form.profundidad || 3 };
+      if (!direccion) {
+        alert("⚠️ Ingrese una dirección para rastrear el origen.");
+        return; // Salir temprano
       }
-
-      // ================== ANÁLISIS DE DESTINO ==================
-      else if (tipoAccion === "destino") {
-        setLoading(true)
-        tipo = "destino"
-        direccion = form.direccionOrigen
-        if (!direccion) throw new Error("⚠️ Ingrese una dirección para analizar destinos.")
-
-        params = { direccion, dias: form.periodo || 7 }
-        url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`
-      }
-
-      // ================== DETECCIÓN DE CLUSTERS ==================
-      else if (tipoAccion === "cluster") {
-        setLoadingCluster(true)
-        const direccionBase = form.direccionBase
-        if (!direccionBase) throw new Error("⚠️ Ingrese una dirección base para detectar el cluster.")
-
-        const algoritmo = form.algoritmo || "coincidencia-etiquetas"
-        const clusterUrl = `http://localhost:8000/clusters/detectar?direccion=${direccionBase}&algoritmo=${algoritmo}`
-
-        console.log(`🌐 Solicitando cluster → ${clusterUrl}`)
-        const res = await fetch(clusterUrl)
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.detail || "Error en detección de cluster")
-
-        console.log("✅ Cluster detectado:", data)
-        setResultadoCluster({ ...data, algoritmo })
-        setIsClusterModalOpen(true)
-        return
-      }
-
-      // ================== ACCIÓN NO IMPLEMENTADA ==================
-      else {
-        alert(`🔍 Acción "${tipoAccion}" aún no implementada.`)
-        return
-      }
-
-      console.log(`🌐 Solicitando → ${url}`)
-      const response = await fetch(url, { method: "POST" })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.detail || response.statusText)
-
-      console.log("✅ Datos recibidos:", data)
-
-      const conexiones = Array.isArray(data.resultado) ? data.resultado : []
-      const trazaFormateada = {
-        direccion: data.direccion_inicial,
-        tipo,
-        actividad: tipo === "destino" ? "Análisis de Destino" : "Rastreo de Origen",
-        cantidad_reportes: data.total_conexiones,
-        conexiones,
-        fecha_analisis: data.fecha_analisis,
-      }
-
-      setResultadoRastreo(trazaFormateada)
-      setIsModalOpen(true)
-    } catch (error) {
-      console.error("❌ Error al procesar:", error)
-      alert(error.message)
-    } finally {
-      setLoading(false)
-      setLoadingCluster(false)
+      url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`;
     }
+    else if (tipoAccion === "destino") {
+      tipo = "destino";
+      direccion = form.direccionOrigen;
+      params = { direccion, dias: form.periodo || 7 };
+      if (!direccion) {
+        alert("⚠️ Ingrese una dirección para analizar destinos.");
+        return; // Salir temprano
+      }
+      url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`;
+    }
+    else {
+      // Para "Detección de Clusters" y "Análisis Temporal"
+      alert(`🔍 Acción "${tipoAccion}" aún no implementada.\n${JSON.stringify(form, null, 2)}`);
+      return;
+    }
+
+    console.log(`🌐 Solicitando → ${url}`);
+
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) {
+      const errorData = await response.json();
+      // FastAPI a menudo envía el detalle en un campo 'detail'
+      const errorMessage = errorData.detail 
+        ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
+        : response.statusText;
+
+      throw new Error(`Error HTTP ${response.status}: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Datos recibidos:", data);
+
+    setResultadoRastreo(data);
+    setIsModalOpen(true);
+  } catch (error) {
+    console.error("Error al procesar el análisis:", error);
+    alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`);
+  } finally {
+    setLoadingAction(null);
   }
 
   // ======================= UI =======================
@@ -187,22 +160,13 @@ const AnalisisForenseTools = () => {
 
             <button
               onClick={() => handleAction("origen")}
-              disabled={loading}
+              disabled={loadingAction === "origen"}
               className={`w-full ${
-                loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "origen" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cargando...
-                </>
-              ) : (
-                <>
-                  <Search className="h-4 w-4" />
-                  Iniciar Rastreo
-                </>
-              )}
+              <Search className="h-4 w-4" />
+              {loadingAction === "origen" ? "Cargando..." : "Iniciar Rastreo"}
             </button>
           </div>
 
@@ -237,26 +201,18 @@ const AnalisisForenseTools = () => {
               <option value="7">Últimos 7 días</option>
               <option value="30">Últimos 30 días</option>
               <option value="90">Últimos 90 días</option>
+              <option value="historico">Histórico (completo)</option>
             </select>
 
             <button
               onClick={() => handleAction("destino")}
-              disabled={loading}
+              disabled={loadingAction === "destino"}
               className={`w-full ${
-                loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
+                loadingAction === "destino" ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
               } text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium`}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cargando...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4" />
-                  Analizar Destinos
-                </>
-              )}
+              <TrendingUp className="h-4 w-4" />
+              {loadingAction === "destino" ? "Cargando..." : "Analizar Destinos"}
             </button>
           </div>
 
