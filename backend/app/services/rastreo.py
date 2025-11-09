@@ -46,6 +46,8 @@ async def rastrear_origen(direccion_inicial: str, profundidad: int = 3):
         for r in existente.get("resultado", []):
             if isinstance(r.get("fecha"), datetime):
                 r["fecha"] = r["fecha"].isoformat()
+        if isinstance(existente.get("fecha_analisis"), datetime):
+            existente["fecha_analisis"] = existente["fecha_analisis"].isoformat()
         print("📂 Rastreo existente → devolviendo desde Mongo")
         return existente
 
@@ -199,7 +201,9 @@ async def rastrear_origen(direccion_inicial: str, profundidad: int = 3):
         )
 
         try:
-            insert_result = await rastreo_collection.insert_one(rastreo.model_dump(by_alias=True))
+            insert_result = await rastreo_collection.insert_one(
+                rastreo.model_dump(by_alias=True, exclude={'id'})
+            )
             rastreo.id = str(insert_result.inserted_id)
         except Exception as e:
             import traceback
@@ -245,6 +249,8 @@ async def rastrear_destino(direccion_inicial: str, dias: int = 7):
             for r in existente["resultado"]:
                 if isinstance(r.get("fecha"), datetime):
                     r["fecha"] = r["fecha"].isoformat()
+        if isinstance(existente.get("fecha_analisis"), datetime):
+            existente["fecha_analisis"] = existente["fecha_analisis"].isoformat()
         return existente
 
     # Obtener transacciones de BlockCypher

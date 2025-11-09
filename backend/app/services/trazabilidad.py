@@ -13,8 +13,11 @@ async def obtener_todas_las_trazas(limit: int = 30):
 
     for tx in transacciones:
         # --- Direcciones origen y destino ---
-        origen = tx.get("inputs", [])
-        destino = tx.get("outputs", [])
+        # 🔥 CORRECCIÓN: Convertir ObjectIds a strings
+        origen_ids = tx.get("inputs", [])
+        destino_ids = tx.get("outputs", [])
+        origen = [str(oid) for oid in origen_ids]
+        destino = [str(oid) for oid in destino_ids]
         direccion_ref = origen[0] if origen else (destino[0] if destino else None)
 
         # --- Información de dirección ---
@@ -24,7 +27,13 @@ async def obtener_todas_las_trazas(limit: int = 30):
             if PyObjectId.is_valid(direccion_ref):
                 direccion_ref = PyObjectId(direccion_ref)
             direccion_doc = await direccion_collection.find_one({"_id": direccion_ref})
-        perfil_riesgo = direccion_doc.get("perfil_riesgo", "desconocido") if direccion_doc else "desconocido"
+        
+        # 🔥 CORRECCIÓN: Manejar el caso donde direccion_doc es None
+        perfil_riesgo = "desconocido"
+        ultimo_update_riesgo = None
+        if direccion_doc:
+            perfil_riesgo = direccion_doc.get("perfil_riesgo", "desconocido")
+            ultimo_update_riesgo = direccion_doc.get("ultimo_update_riesgo")
 
         # --- Reportes (ChainAbuse + DB fallback) ---
         try:
@@ -93,7 +102,7 @@ async def obtener_todas_las_trazas(limit: int = 30):
             "origen": origen,
             "destino": destino,
             "perfil_riesgo": perfil_riesgo,
-            "ultimo_update_riesgo": direccion_doc.get("ultimo_update_riesgo") if direccion_doc else None, 
+            "ultimo_update_riesgo": ultimo_update_riesgo, 
             "reportes_totales": cantidad_reportes,
             "reportes_verificados": reportes_verificados,
             "reportes_no_verificados": reportes_no_verificados,
