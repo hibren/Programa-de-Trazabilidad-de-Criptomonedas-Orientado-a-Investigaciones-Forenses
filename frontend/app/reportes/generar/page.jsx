@@ -27,7 +27,7 @@ export default function ReportesGenerarPage() {
       id: "riesgo",
       titulo: "Reporte de Riesgo por Dirección",
       descripcion: "Análisis detallado de perfil de riesgo para direcciones específicas",
-      formatos: ["PDF", "Word", "CSV"],
+      formatos: ["PDF", "CSV"],
       icono: <FileText className="h-6 w-6 text-green-700" />,
     },
     {
@@ -41,29 +41,8 @@ export default function ReportesGenerarPage() {
       id: "clusters",
       titulo: "Reporte de Clusters y Redes",
       descripcion: "Análisis de agrupaciones y conexiones entre direcciones",
-      formatos: ["PDF", "Word"],
-      icono: <Network className="h-6 w-6 text-green-700" />,
-    },
-    {
-      id: "alertas",
-      titulo: "Reporte de Alertas",
-      descripcion: "Resumen de alertas y eventos de seguridad",
       formatos: ["PDF", "CSV"],
-      icono: <Bell className="h-6 w-6 text-green-700" />,
-    },
-    {
-      id: "compliance",
-      titulo: "Reporte de Compliance",
-      descripcion: "Documentación para cumplimiento regulatorio",
-      formatos: ["PDF", "Word"],
-      icono: <FileCheck className="h-6 w-6 text-green-700" />,
-    },
-    {
-      id: "ejecutivo",
-      titulo: "Reporte Ejecutivo",
-      descripcion: "Resumen de alto nivel para directivos",
-      formatos: ["PDF", "PowerPoint"],
-      icono: <BarChart className="h-6 w-6 text-green-700" />,
+      icono: <Network className="h-6 w-6 text-green-700" />,
     },
   ]
 
@@ -81,10 +60,16 @@ export default function ReportesGenerarPage() {
       }
 
       const res = await fetch(`${API_URL}${endpoint}?formato=${formato}`, {
-  method: "POST",
-})
+        method: "POST",
+      })
 
-      const data = await res.json()
+      // ⚠ Si la respuesta no es JSON válido, evitamos el error
+      let data = null
+      try {
+        data = await res.json()
+      } catch {
+        data = null
+      }
 
       if (data?.path) {
         const filename = data.path.split("/").pop()
@@ -131,6 +116,7 @@ export default function ReportesGenerarPage() {
               <button
                 onClick={() => {
                   setTipo(r.id)
+                  //setFormato("PDF") // reset formato default
                   setOpen(true)
                 }}
                 className="bg-green-700 text-white px-4 py-2 rounded-md w-full flex items-center justify-center gap-2 hover:bg-green-800"

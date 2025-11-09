@@ -192,18 +192,28 @@ async def generar_clusters(current_user: Usuario = Depends(check_permissions_aut
 # =====================================================
 
 @router.get("/download/{filename}")
-async def descargar_reporte(filename: str):  # ← SIN current_user
-    """Descarga un reporte sin autenticación"""
+async def descargar_reporte(filename: str):
+    """Descarga un reporte en formato PDF o CSV con el tipo MIME correcto."""
     file_path = os.path.join("app/static/reportes", filename)
-    
+
     if not os.path.exists(file_path):
         raise HTTPException(
-            status_code=404, 
+            status_code=404,
             detail=f"Archivo '{filename}' no encontrado"
         )
-    
+
+    # Detectar extensión para devolver el MIME correcto
+    ext = filename.split(".")[-1].lower()
+
+    if ext == "pdf":
+        media_type = "application/pdf"
+    elif ext == "csv":
+        media_type = "text/csv"
+    else:
+        media_type = "application/octet-stream"
+
     return FileResponse(
-        file_path, 
+        file_path,
         filename=filename,
-        media_type='application/octet-stream'
+        media_type=media_type,
     )
