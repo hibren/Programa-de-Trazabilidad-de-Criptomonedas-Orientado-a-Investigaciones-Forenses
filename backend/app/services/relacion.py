@@ -142,23 +142,43 @@ async def detectar_relaciones():
     await asyncio.gather(*tasks)
 
     # ============================================================
-    # 6️⃣ Crear relaciones por transacción compartida
+    # 6️⃣ Crear relaciones por transacción compartida (Optimizado)
     # ============================================================
     print("🔗 Generando relaciones por transacciones compartidas...")
+
+    MAX_DIRECCIONES = 10  # límite máximo de direcciones por transacción
+    relaciones_creadas = []
+
     async for tx in transaccion_collection.find({}, {"inputs": 1, "outputs": 1, "hash": 1}):
-        direcciones = set(tx.get("inputs", []) + tx.get("outputs", []))
-        if len(direcciones) > 1:
-            dirs = list(direcciones)
-            tx_hash = tx.get("hash", "sin_hash")
-            tasks = [
-                save_relacion(dirs[i], dirs[j], "transaccion_compartida", tx_hash)
-                for i in range(len(dirs)) for j in range(i + 1, len(dirs))
-            ]
-            await asyncio.gather(*tasks)
-            relaciones_creadas.extend([(dirs[i], dirs[j], tx_hash) for i in range(len(dirs)) for j in range(i + 1, len(dirs))])
+        inputs = tx.get("inputs", [])
+        outputs = tx.get("outputs", [])
+        tx_hash = tx.get("hash", "sin_hash")
+
+        # ✅ 1. Saltar transacciones con demasiadas direcciones (mixers, consolidaciones, etc.)
+        total_dirs = len(set(inputs + outputs))
+        if total_dirs <= 1 or total_dirs > MAX_DIRECCIONES:
+            continue
+
+        # ✅ 2. Simplificar: conectar solo el primer input con el primer output (visualización representativa)
+        if inputs and outputs:
+            origen = inputs[0]
+            destino = outputs[0]
+
+            # ✅ 3. Evitar duplicados: verificar si ya existe la relación antes de crearla
+            existe = await relaciones_collection.find_one({
+                "direccion_origen": origen,
+                "direccion_destino": destino,
+                "tipo_vinculo": "transaccion_compartida",
+                "valor": tx_hash
+            })
+
+            if not existe:
+                await save_relacion(origen, destino, "transaccion_compartida", tx_hash)
+                relaciones_creadas.append((origen, destino, tx_hash))
 
     print(f"✅ Relaciones creadas o detectadas: {len(relaciones_creadas)}")
     return {"relaciones_creadas": len(relaciones_creadas)}
+
 
 
 # ================================================================

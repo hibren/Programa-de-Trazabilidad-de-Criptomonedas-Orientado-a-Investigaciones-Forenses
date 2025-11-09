@@ -53,9 +53,7 @@ export default function AnalisisGraph() {
         // 1️⃣ Detectar relaciones (no bloqueante)
         fetch(`${API}/relaciones/detectar/`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }).catch(() =>
           console.warn("No se pudo detectar relaciones nuevas (no bloqueante)")
         )
@@ -173,6 +171,14 @@ export default function AnalisisGraph() {
     cargarRelaciones()
   }, [])
 
+  // 🎨 Paleta de color para el borde/títulos del panel de detalles (sin fondo para que NO se vea todo junto)
+  const detalleAccent = {
+    dominio_compartido: { border: "border-blue-400", text: "text-blue-600" },
+    wallet_compartida: { border: "border-green-400", text: "text-green-600" },
+    categoria_compartida: { border: "border-orange-400", text: "text-orange-600" },
+    transaccion_compartida: { border: "border-purple-400", text: "text-purple-600" },
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
@@ -189,13 +195,50 @@ export default function AnalisisGraph() {
       </div>
 
       <div className="space-y-6">
+        {/* === PANEL DE DETALLES (secciones separadas) === */}
         <div className="bg-white rounded-lg shadow-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Detalles</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="inline-block w-2 h-5 rounded-sm bg-gradient-to-b from-indigo-500 to-purple-600" />
+            Detalles
+          </h3>
+
           {selectedNode ? (
-            <div className="text-sm text-gray-700 space-y-1">
-              <p><strong>ID:</strong> {selectedNode.id}</p>
-              <p><strong>Tipo:</strong> {selectedNode.group}</p>
-              <p><strong>Info:</strong> {selectedNode.title}</p>
+            <div
+              className={`text-sm border-l-4 pl-3 rounded-md space-y-4 ${
+                detalleAccent[selectedNode.group]?.border || "border-gray-300"
+              }`}
+            >
+              {/* Dirección */}
+              <div className="bg-gray-50 p-3 rounded-md shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+                  Dirección
+                </p>
+                <p className="font-mono text-[13px] font-medium text-gray-800 break-all">
+                  {selectedNode.id}
+                </p>
+              </div>
+
+              {/* Tipo de vínculo */}
+              <div className="bg-gray-50 p-3 rounded-md shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+                  Tipo de vínculo
+                </p>
+                <p
+                  className={`capitalize font-semibold ${
+                    detalleAccent[selectedNode.group]?.text || "text-gray-700"
+                  }`}
+                >
+                  {selectedNode.group.replace("_", " ")}
+                </p>
+              </div>
+
+              {/* Información */}
+              <div className="bg-gray-50 p-3 rounded-md shadow-sm border border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+                  Información
+                </p>
+                <p className="text-gray-700 leading-snug">{selectedNode.title}</p>
+              </div>
             </div>
           ) : (
             <p className="text-gray-500 text-sm">
@@ -204,6 +247,7 @@ export default function AnalisisGraph() {
           )}
         </div>
 
+        {/* === LEYENDA === */}
         <div className="bg-white rounded-lg shadow-lg p-4">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Leyenda</h3>
           <ul className="space-y-2 text-sm text-gray-700">
