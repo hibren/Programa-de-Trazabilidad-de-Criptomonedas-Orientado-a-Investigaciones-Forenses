@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { FileText, Activity, Network, Bell, FileCheck, BarChart } from "lucide-react"
+import { FileText, Activity, Network } from "lucide-react"
 import ReportesContent from "@/components/organisms/ReportesContent"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +19,8 @@ export default function ReportesGenerarPage() {
   const [open, setOpen] = useState(false)
   const [tipo, setTipo] = useState("")
   const [direccion, setDireccion] = useState("")
+  const [fechaInicio, setFechaInicio] = useState("")
+  const [fechaFin, setFechaFin] = useState("")
   const [formato, setFormato] = useState("PDF")
   const [loading, setLoading] = useState(false)
 
@@ -50,20 +52,37 @@ export default function ReportesGenerarPage() {
     setLoading(true)
     try {
       let endpoint = ""
-      if (tipo === "riesgo") endpoint = `/reportes/generar/riesgo/${direccion}`
-      else if (tipo === "actividad") endpoint = `/reportes/generar/actividad/`
-      else if (tipo === "clusters") endpoint = `/reportes/generar/clusters/`
+
+      if (tipo === "riesgo") {
+        if (!direccion) {
+          alert("Debes ingresar una dirección.")
+          setLoading(false)
+          return
+        }
+        endpoint = `/reportes/generar/riesgo/${direccion}?formato=${formato}`
+      }
+
+      else if (tipo === "actividad") {
+        if (!fechaInicio || !fechaFin) {
+          alert("Debes seleccionar ambas fechas.")
+          setLoading(false)
+          return
+        }
+        endpoint = `/reportes/generar/actividad/?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&formato=${formato}`
+      }
+
+      else if (tipo === "clusters") {
+        endpoint = `/reportes/generar/clusters/?formato=${formato}`
+      }
+
       else {
-        alert("Este tipo de reporte aún no está implementado.")
+        alert("Tipo de reporte no implementado.")
         setLoading(false)
         return
       }
 
-      const res = await fetch(`${API_URL}${endpoint}?formato=${formato}`, {
-        method: "POST",
-      })
+      const res = await fetch(`${API_URL}${endpoint}`, { method: "POST" })
 
-      // ⚠ Si la respuesta no es JSON válido, evitamos el error
       let data = null
       try {
         data = await res.json()
@@ -84,6 +103,8 @@ export default function ReportesGenerarPage() {
       setLoading(false)
       setOpen(false)
       setDireccion("")
+      setFechaInicio("")
+      setFechaFin("")
     }
   }
 
@@ -116,7 +137,6 @@ export default function ReportesGenerarPage() {
               <button
                 onClick={() => {
                   setTipo(r.id)
-                  //setFormato("PDF") // reset formato default
                   setOpen(true)
                 }}
                 className="bg-green-700 text-white px-4 py-2 rounded-md w-full flex items-center justify-center gap-2 hover:bg-green-800"
@@ -142,13 +162,28 @@ export default function ReportesGenerarPage() {
 
           {tipo === "riesgo" && (
             <div className="mt-4 space-y-2">
-              <label className="text-sm text-gray-700 font-medium">
-                Dirección (hash)
-              </label>
+              <label className="text-sm text-gray-700 font-medium">Dirección (hash)</label>
               <Input
                 placeholder="Ej: 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
+              />
+            </div>
+          )}
+
+          {tipo === "actividad" && (
+            <div className="mt-4 space-y-2">
+              <label className="text-sm text-gray-700 font-medium">Fecha inicio</label>
+              <Input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+              />
+              <label className="text-sm text-gray-700 font-medium">Fecha fin</label>
+              <Input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
               />
             </div>
           )}
