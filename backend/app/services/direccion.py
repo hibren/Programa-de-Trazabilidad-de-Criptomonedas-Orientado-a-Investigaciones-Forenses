@@ -2,12 +2,20 @@ from app.database import direccion_collection, PyObjectId
 from app.models.direccion import DireccionModel
 from app.schemas.direccion import DireccionCreateSchema
 from typing import List, Optional
-import httpx  # para llamar a la API externa
+import httpx
+import asyncio
+import random
+import json
 
-TOKEN = "be3c331ca2554fea8612129f72e1e5b9"
-BASE_URL = "https://api.blockcypher.com/v1/btc/main"
+BLOCKCYPHER_API = "https://api.blockcypher.com/v1/btc/main"
+BLOCKCYPHER_TOKENS = [
+    "d210a6ac92274d61b1f15e2c3652bf57",
+    "0da27d786bd94dbb89c7ca6d0274fc03",
+]
 
-# Obtener todos
+def get_random_token():
+    return random.choice(BLOCKCYPHER_TOKENS)
+
 async def get_all_direcciones():
     docs = await direccion_collection.find().to_list(None)
     result = []
@@ -17,7 +25,6 @@ async def get_all_direcciones():
         # usa .dict(by_alias=True) para mantener los alias
         result.append(DireccionModel(**doc).dict(by_alias=True))
     return result
-
 
 async def create_direccion(data: dict) -> dict:
     result = await direccion_collection.insert_one(data)
@@ -43,19 +50,72 @@ async def delete_direccion(direccion_id: str) -> int:
     return result.deleted_count
 
 async def fetch_and_save_direccion(address: str) -> DireccionModel:
-    url = f"https://api.blockcypher.com/v1/btc/main/addrs/{address}/full"
+    MAX_INTENTOS = 3
+    BASE_DELAY = 5  # segundos
+    data = None
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    for intento in range(MAX_INTENTOS):
         try:
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.json()
-            if "error" in data:
-                raise ValueError(data["error"])
+            token = get_random_token()
+            url = f"{BLOCKCYPHER_API}/addrs/{address}/full?token={token}"
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }
+            
+            delay = random.uniform(2, 5)
+            await asyncio.sleep(delay)
+            
+            print(f"🌐 [Dirección] Consultando {address[:8]}... (Intento {intento + 1})")
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
+                
+                content_type = response.headers.get("Content-Type", "")
+                response_text = response.text
+                
+                if "Cloudflare" in response_text or "Just a moment" in response_text:
+                    print(f"🔒 Cloudflare detectado en dirección {address[:8]}. Reintentando...")
+                    await asyncio.sleep(BASE_DELAY * (intento + 1))
+                    continue
+                
+                if "application/json" not in content_type:
+                    print(f"⚠️ Respuesta no es JSON para dirección {address[:8]}: {content_type}")
+                    await asyncio.sleep(BASE_DELAY * (intento + 1))
+                    continue
+                
+                try:
+                    api_data = response.json()
+                except json.JSONDecodeError:
+                    print(f"❌ JSON inválido para dirección {address[:8]}.")
+                    await asyncio.sleep(BASE_DELAY * (intento + 1))
+                    continue
+                
+                if "error" in api_data:
+                    error_msg = api_data["error"]
+                    if "limit" in error_msg.lower():
+                        print(f"⏳ Rate limit en dirección {address[:8]}. Esperando...")
+                        await asyncio.sleep(BASE_DELAY * 2)
+                        continue
+                    raise Exception(f"Error de API para {address}: {error_msg}")
+                
+                response.raise_for_status()
+                data = api_data
+                break # Salir del bucle si todo fue bien
+
         except httpx.HTTPStatusError as e:
-            raise Exception(f"Error HTTP: {e.response.text}") from e
+            if e.response.status_code == 429: # Too Many Requests
+                print(f"⏳ HTTP 429 en dirección {address[:8]}. Esperando...")
+                await asyncio.sleep(BASE_DELAY * 3)
+            else:
+                raise Exception(f"Error HTTP para {address}: {e.response.text}") from e
         except httpx.RequestError as e:
-            raise Exception(f"Error de conexión con la API: {str(e)}") from e
+            print(f"🔌 Error de conexión para {address}. Reintentando...")
+            await asyncio.sleep(BASE_DELAY * (intento + 1))
+
+    if not data:
+        raise Exception(f"No se pudo obtener datos para la dirección {address} después de {MAX_INTENTOS} intentos.")
 
     txs = data.get("txs", [])
     primer_tx = None
@@ -90,4 +150,3 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
         doc["_id"] = result.inserted_id
 
     return DireccionModel(**doc)
-

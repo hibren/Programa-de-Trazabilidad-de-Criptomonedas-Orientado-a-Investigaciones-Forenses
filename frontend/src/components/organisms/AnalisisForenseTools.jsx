@@ -19,12 +19,12 @@ const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
 // ======================= COMPONENTE PRINCIPAL =======================
 const AnalisisForenseTools = () => {
   const [form, setForm] = useState({
-    origen: "",
-    destino: "",
-    profundidad: "",
-    periodo: "",
-    algoritmo: "",
-    ventana: "",
+    direccionOrigen: "", // Para Análisis de Destino
+    direccionDestino: "", // Para Rastreo de Origen
+    profundidad: "3",
+    periodo: "7",
+    algoritmo: "coincidencia-etiquetas",
+    ventana: "24h",
   })
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -37,54 +37,48 @@ const AnalisisForenseTools = () => {
   }
 
   // ======================= FUNCIÓN PRINCIPAL =======================
-const handleAction = async (accion) => {
-  const action = accion.trim().toLowerCase(); // 👈 normaliza
-
+const handleAction = async (tipoAccion) => {
   try {
     setLoading(true);
 
     let url = "";
     let tipo = "";
     let direccion = "";
+    let params = {};
 
-    if (action.includes("origen")) {
+    if (tipoAccion === "origen") {
       tipo = "origen";
-      direccion = form.destino;
-      const profundidad = form.profundidad || 3;
-
+      direccion = form.direccionDestino;
+      params = { direccion, profundidad: form.profundidad || 3 };
       if (!direccion) {
         alert("⚠️ Ingrese una dirección para rastrear el origen.");
-        setLoading(false);
-        return;
+        return; // Salir temprano
       }
-
-      url = `http://localhost:8000/rastreo/origen?direccion=${direccion}&profundidad=${profundidad}`;
+      url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`;
     }
-
-    else if (action.includes("destino")) {
+    else if (tipoAccion === "destino") {
       tipo = "destino";
-      direccion = form.origen;
-      const dias = form.periodo || 7;
-
+      direccion = form.direccionOrigen;
+      params = { direccion, dias: form.periodo || 7 };
       if (!direccion) {
         alert("⚠️ Ingrese una dirección para analizar destinos.");
-        setLoading(false);
-        return;
+        return; // Salir temprano
       }
-
-      url = `http://localhost:8000/rastreo/destino?direccion=${direccion}&dias=${dias}`;
+      url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`;
     }
-
     else {
-      alert(`🔍 Ejecutando ${accion}...\n${JSON.stringify(form, null, 2)}`);
-      setLoading(false);
+      // Para "Detección de Clusters" y "Análisis Temporal"
+      alert(`🔍 Acción "${tipoAccion}" aún no implementada.\n${JSON.stringify(form, null, 2)}`);
       return;
     }
 
     console.log(`🌐 Solicitando → ${url}`);
 
     const response = await fetch(url, { method: "POST" });
-    if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Error HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+    }
 
     const data = await response.json();
     console.log("✅ Datos recibidos:", data);
@@ -103,7 +97,7 @@ const handleAction = async (accion) => {
     setIsModalOpen(true);
   } catch (error) {
     console.error("Error al procesar el análisis:", error);
-    alert("⚠️ Error al obtener los datos del servidor.");
+    alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`);
   } finally {
     setLoading(false);
   }
@@ -146,9 +140,9 @@ const handleAction = async (accion) => {
             </label>
             <input
               type="text"
-              name="destino"
+              name="direccionDestino"
               placeholder="Ingrese dirección..."
-              value={form.destino}
+              value={form.direccionDestino}
               onChange={handleChange}
               className="w-full border rounded-md px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-green-500"
             />
@@ -162,14 +156,13 @@ const handleAction = async (accion) => {
               onChange={handleChange}
               className="w-full border rounded-md px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-green-500"
             >
-              <option value="">Seleccionar profundidad</option>
+              <option value="3">3 saltos (recomendado)</option>
               <option value="1">1 salto</option>
-              <option value="3">3 saltos</option>
               <option value="5">5 saltos</option>
             </select>
 
             <button
-              onClick={() => handleAction("Rastreo de Origen")}
+              onClick={() => handleAction("origen")}
               disabled={loading}
               className={`w-full ${
                 loading ? "bg-green-400 cursor-not-allowed" : "bg-green-700 hover:bg-green-800"
@@ -201,9 +194,9 @@ const handleAction = async (accion) => {
             </label>
             <input
               type="text"
-              name="origen"
+              name="direccionOrigen"
               placeholder="Ingrese dirección..."
-              value={form.origen}
+              value={form.direccionOrigen}
               onChange={handleChange}
               className="w-full border rounded-md px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-green-500"
             />
@@ -266,14 +259,14 @@ const handleAction = async (accion) => {
               onChange={handleChange}
               className="w-full border rounded-md px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-green-500"
             >
-              <option value="">Seleccionar algoritmo</option>
               <option value="coincidencia-etiquetas">Coincidencia de etiquetas</option>
               <option value="coincidencia-transacciones">Coincidencia de transacciones</option>
             </select>
 
             <button
-              onClick={() => handleAction("Detección de Clusters")}
-              className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium"
+              onClick={() => handleAction("cluster")}
+              disabled={true}
+              className="w-full bg-gray-400 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium cursor-not-allowed"
             >
               <Network className="h-4 w-4" />
               Detectar Cluster
@@ -307,15 +300,15 @@ const handleAction = async (accion) => {
               onChange={handleChange}
               className="w-full border rounded-md px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-green-500"
             >
-              <option value="">Seleccionar ventana</option>
               <option value="24h">24 horas</option>
               <option value="7d">7 días</option>
               <option value="30d">30 días</option>
             </select>
 
             <button
-              onClick={() => handleAction("Análisis Temporal")}
-              className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium"
+              onClick={() => handleAction("temporal")}
+              disabled={true}
+              className="w-full bg-gray-400 text-white py-2 rounded-md flex items-center justify-center gap-2 text-sm font-medium cursor-not-allowed"
             >
               <Clock className="h-4 w-4" />
               Analizar Patrones
