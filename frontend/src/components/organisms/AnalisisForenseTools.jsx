@@ -2,9 +2,10 @@
 
 import { Search, TrendingUp, Network, Clock, Loader2 } from "lucide-react"
 import { useState } from "react"
+import Swal from "sweetalert2"
 import ModalDetalleRastreo from "@/components/molecules/ModalDetalleRastreo"
 import ModalDetalleCluster from "@/components/molecules/ModalDetalleCluster"
-import ModalAnalisisTemporal from "@/components/molecules/ModalAnalisisTemporal" // 🆕 nuevo modal
+import ModalAnalisisTemporal from "@/components/molecules/ModalAnalisisTemporal"
 
 // ======================= MODAL DE RESULTADOS =======================
 const ResultadoRastreoModal = ({ isOpen, onClose, data }) => {
@@ -29,8 +30,8 @@ const AnalisisForenseTools = () => {
   const [resultadoRastreo, setResultadoRastreo] = useState(null)
   const [isClusterModalOpen, setIsClusterModalOpen] = useState(false)
   const [resultadoCluster, setResultadoCluster] = useState(null)
-  const [isTemporalModalOpen, setIsTemporalModalOpen] = useState(false) // 🆕
-  const [resultadoTemporal, setResultadoTemporal] = useState(null) // 🆕
+  const [isTemporalModalOpen, setIsTemporalModalOpen] = useState(false)
+  const [resultadoTemporal, setResultadoTemporal] = useState(null)
   const [loadingAction, setLoadingAction] = useState(null)
   const [loadingCluster, setLoadingCluster] = useState(false)
 
@@ -54,7 +55,12 @@ const AnalisisForenseTools = () => {
         direccion = form.direccionDestino
         params = { direccion, profundidad: form.profundidad || 3 }
         if (!direccion) {
-          alert("⚠️ Ingrese una dirección para rastrear el origen.")
+          Swal.fire({
+            icon: "warning",
+            title: "Falta información",
+            text: "Ingrese una dirección para rastrear el origen.",
+            confirmButtonColor: "#16a34a",
+          })
           return
         }
         url = `http://localhost:8000/rastreo/origen?${new URLSearchParams(params)}`
@@ -63,14 +69,24 @@ const AnalisisForenseTools = () => {
         direccion = form.direccionOrigen
         params = { direccion, dias: form.periodo || 7 }
         if (!direccion) {
-          alert("⚠️ Ingrese una dirección para analizar destinos.")
+          Swal.fire({
+            icon: "warning",
+            title: "Falta información",
+            text: "Ingrese una dirección para analizar destinos.",
+            confirmButtonColor: "#16a34a",
+          })
           return
         }
         url = `http://localhost:8000/rastreo/destino?${new URLSearchParams(params)}`
       } else if (tipoAccion === "cluster") {
         const direccionBase = form.direccionBase
         if (!direccionBase) {
-          alert("⚠️ Ingrese una dirección base para detectar el cluster.")
+          Swal.fire({
+            icon: "warning",
+            title: "Dato requerido",
+            text: "Ingrese una dirección base para detectar el cluster.",
+            confirmButtonColor: "#16a34a",
+          })
           return
         }
 
@@ -82,14 +98,27 @@ const AnalisisForenseTools = () => {
         )
 
         const data = await res.json()
-        if (!res.ok) throw new Error(data.detail || "Error en detección de cluster")
+        if (!res.ok) {
+          // Verificar si es un mensaje de "sin resultados"
+          if (data.detail && (data.detail.includes("No se detectaron") || data.detail.includes("no encontrado"))) {
+            Swal.fire({
+              icon: "info",
+              title: "Sin resultados",
+              text: data.detail,
+              confirmButtonColor: "#16a34a",
+            })
+          } else {
+            throw new Error(data.detail || "Error en detección de cluster")
+          }
+          return
+        }
 
         console.log("✅ Cluster detectado:", data)
         setResultadoCluster(data)
         setIsClusterModalOpen(true)
         return
       } 
-      // 🆕 NUEVA SECCIÓN - ANÁLISIS TEMPORAL
+      // 🆕 ANÁLISIS TEMPORAL
       else if (tipoAccion === "temporal") {
         const direcciones = form.direcciones
           .split(",")
@@ -98,7 +127,12 @@ const AnalisisForenseTools = () => {
         const ventana = form.ventana || "24h"
 
         if (direcciones.length === 0) {
-          alert("⚠️ Ingrese al menos una dirección para analizar.")
+          Swal.fire({
+            icon: "warning",
+            title: "Falta información",
+            text: "Ingrese al menos una dirección para analizar.",
+            confirmButtonColor: "#16a34a",
+          })
           return
         }
 
@@ -112,7 +146,18 @@ const AnalisisForenseTools = () => {
 
         if (!response.ok) {
           const errorData = await response.json()
-          throw new Error(errorData.detail || "Error en análisis temporal")
+          // Verificar si es un mensaje de "sin resultados"
+          if (errorData.detail && (errorData.detail.includes("No se detectaron") || errorData.detail.includes("no encontrado"))) {
+            Swal.fire({
+              icon: "info",
+              title: "Sin resultados",
+              text: errorData.detail,
+              confirmButtonColor: "#16a34a",
+            })
+          } else {
+            throw new Error(errorData.detail || "Error en análisis temporal")
+          }
+          return
         }
 
         const data = await response.json()
@@ -123,7 +168,12 @@ const AnalisisForenseTools = () => {
         return
       } 
       else {
-        alert(`🔍 Acción "${tipoAccion}" aún no implementada.`)
+        Swal.fire({
+          icon: "info",
+          title: "Función no implementada",
+          text: `La acción "${tipoAccion}" aún no está disponible.`,
+          confirmButtonColor: "#16a34a",
+        })
         return
       }
 
@@ -137,6 +187,18 @@ const AnalisisForenseTools = () => {
             ? errorData.detail
             : JSON.stringify(errorData.detail)
           : response.statusText
+        
+        // Verificar si es un mensaje de "sin resultados"
+        if (errorMessage.includes("No se detectaron") || errorMessage.includes("no relacionadas")) {
+          Swal.fire({
+            icon: "info",
+            title: "Sin resultados",
+            text: errorMessage,
+            confirmButtonColor: "#16a34a",
+          })
+          return
+        }
+        
         throw new Error(`Error HTTP ${response.status}: ${errorMessage}`)
       }
 
@@ -146,7 +208,24 @@ const AnalisisForenseTools = () => {
       setIsModalOpen(true)
     } catch (error) {
       console.error("Error al procesar el análisis:", error)
-      alert(`⚠️ Error al obtener los datos del servidor: ${error.message}`)
+      
+      // Verificar si el error indica que no hay resultados
+      if (error.message.includes("No se detectaron") || error.message.includes("no relacionadas") || error.message.includes("no encontrado")) {
+        Swal.fire({
+          icon: "info",
+          title: "Sin resultados",
+          text: error.message,
+          confirmButtonColor: "#16a34a",
+        })
+      } else {
+        // Para errores reales del servidor
+        Swal.fire({
+          icon: "error",
+          title: "Error en el servidor",
+          text: error.message || "Hubo un problema al procesar la solicitud.",
+          confirmButtonColor: "#16a34a",
+        })
+      }
     } finally {
       setLoadingAction(null)
       setLoadingCluster(false)
@@ -170,7 +249,7 @@ const AnalisisForenseTools = () => {
         data={resultadoCluster}
       />
 
-      {/* 🆕 MODAL DE RESULTADOS TEMPORALES */}
+      {/* MODAL DE RESULTADOS TEMPORALES */}
       <ModalAnalisisTemporal
         isOpen={isTemporalModalOpen}
         onClose={() => setIsTemporalModalOpen(false)}
