@@ -3,6 +3,7 @@ from app.models.cluster import ClusterModel
 from typing import Optional, List
 import httpx
 from bson import ObjectId
+from app.services.reporte import fetch_reportes_by_address
 
 # ======================= OBTENER TODOS LOS CLUSTERS =======================
 async def get_all_clusters(limit: int = 100) -> List[ClusterModel]:
@@ -137,3 +138,81 @@ async def detectar_cluster_por_transacciones(address: str) -> Optional[ClusterMo
     except Exception as e:
         print(f"❌ Error en detectar_cluster_por_transacciones: {e}")
         return None
+
+
+
+
+
+PESOS_CATEGORIAS = {
+    "RANSOMWARE": 3,
+    "FAKE_RETURNS": 2,
+    "SCAM": 2,
+    "PHISHING": 1,
+    "OTHER": 0.5,
+}
+
+
+def calcular_riesgo_cluster(num_reportes, categorias):
+    if num_reportes == 0:
+        score_reportes = 0
+    elif num_reportes == 1:
+        score_reportes = 1
+    elif num_reportes <= 3:
+        score_reportes = 2
+    else:
+        score_reportes = 3
+
+    score_categoria = max([PESOS_CATEGORIAS.get(c.upper(), 0) for c in categorias]) if categorias else 0
+
+    total = score_reportes + score_categoria
+
+    if total <= 1:
+        nivel = "bajo"
+    elif total <= 3:
+        nivel = "medio"
+    elif total <= 4:
+        nivel = "alto"
+    else:
+        nivel = "crítico"
+
+    return {
+        "total": total,
+        "nivel": nivel,
+        "ponderaciones": {
+            "reportes": score_reportes,
+            "categorias": score_categoria,
+        }
+    }
+
+
+async def generar_analisis_cluster(address: str):
+    cluster = await get_cluster_by_address(address)
+    if not cluster:
+        cluster = await fetch_and_save_cluster(address)
+    if not cluster:
+        return None
+
+    reportes = []
+    for dir_ in cluster.direccion:
+        r = await fetch_reportes_by_address(dir_)
+        reportes.extend(r)
+
+    categorias = [r.scamCategory for r in reportes]
+
+    res = calcular_riesgo_cluster(len(reportes), categorias)
+
+    # ✅ acá actualizamos el cluster en la BD con el nivel calculado
+    nivel = res["nivel"]
+    await cluster_collection.update_one(
+        {"_id": ObjectId(cluster.id)},
+        {"$set": {"tipo_riesgo": nivel}}
+    )
+
+    return {
+        "cluster": cluster.dict(by_alias=True),
+        "total": res["total"],
+        "nivel": nivel,  # devolvemos también para front
+        "ponderaciones": res["ponderaciones"],
+        "cantidad_reportes": len(reportes),
+        "categorias": categorias,
+    }

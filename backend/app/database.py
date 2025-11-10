@@ -28,6 +28,7 @@ usuario_collection = db["usuarios"]
 perfil_collection = db["perfiles"]
 rastreo_collection = db["rastreo"]
 patrones_temporales_collection = db["patrones_temporales"]
+reporte_programado_collection = db["reportes_programados"]
 
 # -----------------------------
 # Clase para usar ObjectId en Pydantic

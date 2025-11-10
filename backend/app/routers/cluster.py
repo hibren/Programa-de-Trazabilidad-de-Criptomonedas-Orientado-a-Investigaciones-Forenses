@@ -10,6 +10,7 @@ from app.services.cluster import (
 from app.security import check_permissions_auto
 from app.models.usuario import Usuario
 from app.models.cluster import ClusterModel
+from app.services.cluster import generar_analisis_cluster
 
 # ✅ Solo una instancia del router
 router = APIRouter(prefix="/clusters", tags=["Clusters"])
@@ -60,3 +61,14 @@ async def detectar_cluster(
 
     else:
         raise HTTPException(status_code=400, detail=f"Algoritmo desconocido: {algoritmo}")
+
+
+
+
+
+@router.get("/analizar/{address}")
+async def analizar_cluster(address: str, current_user: Usuario = Depends(check_permissions_auto)):
+    result = await generar_analisis_cluster(address)
+    if not result:
+        raise HTTPException(404, "No se pudo generar riesgo del cluster")
+    return result
