@@ -1,5 +1,6 @@
-import ReportesContent from "@/components/organisms/ReportesContent"
+import { redirect } from "next/navigation"
 
 export default function ReportesPage() {
-  return <ReportesContent activeTab="generar" />
+  // 🔁 Redirige automáticamente a la pestaña principal (Generar)
+  redirect("/reportes/generar")
 }
