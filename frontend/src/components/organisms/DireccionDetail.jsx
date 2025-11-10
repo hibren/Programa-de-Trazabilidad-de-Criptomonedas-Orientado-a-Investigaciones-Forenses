@@ -26,16 +26,37 @@ export default function DireccionDetail({ direccion }) {
           'Authorization': `Bearer ${token}`
         }
 
-        const [infoRes, txRes] = await Promise.all([
-          fetch(`${API_URL}/direcciones/${direccion}`, { headers }).then((r) => r.json()),
-          fetch(`${API_URL}/direcciones/${direccion}/transacciones`, { headers }).then((r) => r.json()),
-        ])
+        // Obtener info de la dirección desde tu API
+        const infoRes = await fetch(`${API_URL}/direcciones/${direccion}`, { headers }).then((r) => r.json())
         
         console.log("Info recibida:", infoRes)
-        console.log("Transacciones:", txRes)
-        
         setInfo(infoRes)
-        setTransacciones(txRes)
+
+        // Obtener transacciones directamente desde BlockCypher
+        try {
+          const blockcypherRes = await fetch(
+            `https://api.blockcypher.com/v1/btc/main/addrs/${direccion}/full?limit=50`
+          ).then((r) => r.json())
+          
+          console.log("Datos de BlockCypher:", blockcypherRes)
+          
+          // Formatear transacciones
+          const txsFormatted = (blockcypherRes.txs || []).map(tx => ({
+            hash: tx.hash,
+            fecha: tx.confirmed || tx.received || "Pendiente",
+            monto_total: (tx.total / 100000000).toFixed(8),
+            estado: tx.confirmed ? "Confirmada" : "Pendiente",
+            confirmations: tx.confirmations || 0,
+            block_height: tx.block_height,
+          }))
+          
+          console.log("Transacciones formateadas:", txsFormatted)
+          setTransacciones(txsFormatted)
+        } catch (bcError) {
+          console.error("Error al obtener transacciones de BlockCypher:", bcError)
+          setTransacciones([])
+        }
+        
       } catch (err) {
         console.error("Error al cargar datos:", err)
       } finally {
@@ -88,7 +109,9 @@ export default function DireccionDetail({ direccion }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
                 <p className="text-xs uppercase text-gray-500">Balance Final</p>
-                <h3 className="text-xl font-semibold text-gray-900 font-mono">{info.final_balance} BTC</h3>
+                <h3 className="text-xl font-semibold text-gray-900 font-mono">
+                  {(info.final_balance / 100000000).toFixed(8)} BTC
+                </h3>
                 <p className="text-xs text-gray-500">Disponible actualmente</p>
               </div>
               <Wallet className="text-green-700 w-6 h-6 opacity-80" />
@@ -97,7 +120,9 @@ export default function DireccionDetail({ direccion }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
                 <p className="text-xs uppercase text-gray-500">Total Recibido</p>
-                <h3 className="text-xl font-semibold text-gray-900 font-mono">{info.total_recibido} BTC</h3>
+                <h3 className="text-xl font-semibold text-gray-900 font-mono">
+                  {(info.total_recibido / 100000000).toFixed(8)} BTC
+                </h3>
                 <p className="text-xs text-gray-500">Acumulado</p>
               </div>
               <ArrowDownRight className="text-green-600 w-6 h-6 opacity-80" />
@@ -106,7 +131,9 @@ export default function DireccionDetail({ direccion }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
                 <p className="text-xs uppercase text-gray-500">Total Enviado</p>
-                <h3 className="text-xl font-semibold text-gray-900 font-mono">{info.total_enviado} BTC</h3>
+                <h3 className="text-xl font-semibold text-gray-900 font-mono">
+                  {(info.total_enviado / 100000000).toFixed(8)} BTC
+                </h3>
                 <p className="text-xs text-gray-500">Acumulado</p>
               </div>
               <ArrowUpRight className="text-red-600 w-6 h-6 opacity-80" />
@@ -115,7 +142,7 @@ export default function DireccionDetail({ direccion }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
               <div>
                 <p className="text-xs uppercase text-gray-500">Transacciones</p>
-                <h3 className="text-xl font-semibold text-gray-900 font-mono">{transacciones.length}</h3>
+                <h3 className="text-xl font-semibold text-gray-900 font-mono">{info.n_tx || 0}</h3>
                 <p className="text-xs text-gray-500">Histórico</p>
               </div>
               <List className="text-gray-600 w-6 h-6 opacity-80" />
@@ -141,8 +168,19 @@ export default function DireccionDetail({ direccion }) {
                       : "bg-green-100 text-green-700"
                   }`}
                 >
-                  {info.perfil_riesgo?.toUpperCase()}
+                  {info.perfil_riesgo?.toUpperCase() || "BAJO"}
                 </span>
+                
+                {info.ponderaciones && (
+                  <div className="mt-4 text-sm text-gray-600">
+                    <p className="font-semibold mb-2">Ponderaciones:</p>
+                    <ul className="space-y-1">
+                      <li>Reportes: {info.ponderaciones.reportes || 0}</li>
+                      <li>Categorías: {info.ponderaciones.categorias || 0}</li>
+                      <li>Actividad: {info.ponderaciones.actividad || 0}</li>
+                    </ul>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -154,7 +192,10 @@ export default function DireccionDetail({ direccion }) {
                 <div className="flex flex-col gap-2 text-sm text-gray-700">
                   <p>Primera transacción: {info.primer_tx || "N/A"}</p>
                   <p>Última transacción: {info.ultima_tx || "N/A"}</p>
-                  <p>Estado actual: <span className="text-green-700 font-medium">Activa</span></p>
+                  <p>Actividad: <span className="font-medium">{info.actividad || "N/A"}</span></p>
+                  <p>Total de operaciones: <span className="font-medium">{info.n_tx || 0}</span></p>
+                  <p>Balance sin confirmar: <span className="font-mono">{(info.unconfirmed_balance / 100000000).toFixed(8)} BTC</span></p>
+                  <p>Transacciones sin confirmar: <span className="font-medium">{info.unconfirmed_n_tx || 0}</span></p>
                 </div>
               </CardContent>
             </Card>
