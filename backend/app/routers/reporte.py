@@ -11,6 +11,9 @@ from app.services.reporte import (
 )
 import os
 from datetime import datetime
+from app.database import reporte_collection
+from datetime import datetime, timedelta
+
 
 router = APIRouter(prefix="/reportes", tags=["reportes"])
 
@@ -194,3 +197,63 @@ async def descargar_reporte(filename: str):
         media_type = "application/octet-stream"
 
     return FileResponse(file_path, filename=filename, media_type=media_type)
+
+
+
+@router.get("/stats")
+async def obtener_estadisticas_reportes():
+    """
+    Devuelve estadísticas generales para el dashboard de reportes.
+    Incluye cantidad total de reportes generados, exportaciones, programados, plantillas, etc.
+    """
+
+    # 1️⃣ Total de reportes generados
+    total_reportes = await reporte_collection.count_documents({})
+
+    # 2️⃣ Reportes generados en la última semana
+    hace_7_dias = datetime.now() - timedelta(days=7)
+    recientes = await reporte_collection.count_documents({"createdAt": {"$gte": hace_7_dias}})
+
+    # 3️⃣ Exportaciones (archivos CSV generados)
+    total_csv = await reporte_collection.count_documents({"formato": "CSV"})
+    csv_hoy = await reporte_collection.count_documents({
+        "formato": "CSV",
+        "createdAt": {"$gte": datetime.now().replace(hour=0, minute=0, second=0)}
+    })
+
+    # 4️⃣ Reportes programados (placeholder, si más adelante los manejás con otra colección)
+    total_programados = 0  # ⚙️ Podés actualizar esto cuando implementes reportes programados
+
+    # 5️⃣ Plantillas disponibles (por ahora lo dejamos estático o cargado desde carpeta)
+    total_plantillas = len([
+        f for f in os.listdir("app/static/reportes")
+        if f.startswith("plantilla_") and f.endswith(".pdf")
+    ]) if os.path.exists("app/static/reportes") else 0
+
+    # 📊 Preparar respuesta para frontend
+    return [
+        {
+            "key": "generados",
+            "title": "Reportes Generados",
+            "value": total_reportes,
+            "subtitle": f"+{recientes} esta semana" if recientes else "Sin nuevos reportes",
+        },
+        {
+            "key": "exportaciones",
+            "title": "Exportaciones",
+            "value": total_csv,
+            "subtitle": f"+{csv_hoy} hoy" if csv_hoy else "Sin nuevas exportaciones",
+        },
+        {
+            "key": "programados",
+            "title": "Programados",
+            "value": total_programados,
+            "subtitle": "Sin cambios",
+        },
+        {
+            "key": "plantillas",
+            "title": "Plantillas",
+            "value": total_plantillas,
+            "subtitle": "+2 nuevas" if total_plantillas > 0 else "Ninguna disponible",
+        },
+    ]
