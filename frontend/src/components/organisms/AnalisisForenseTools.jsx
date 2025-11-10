@@ -93,31 +93,57 @@ const AnalisisForenseTools = () => {
         const algoritmo = form.algoritmo || "coincidencia-etiquetas"
         setLoadingCluster(true)
 
-        const res = await fetch(
+        // 1) detectar cluster
+        const resCluster = await fetch(
           `http://localhost:8000/clusters/detectar?direccion=${direccionBase}&algoritmo=${algoritmo}`
         )
-
-        const data = await res.json()
-        if (!res.ok) {
-          // Verificar si es un mensaje de "sin resultados"
-          if (data.detail && (data.detail.includes("No se detectaron") || data.detail.includes("no encontrado"))) {
-            Swal.fire({
-              icon: "info",
-              title: "Sin resultados",
-              text: data.detail,
-              confirmButtonColor: "#16a34a",
-            })
-          } else {
-            throw new Error(data.detail || "Error en detección de cluster")
-          }
+        const clusterData = await resCluster.json()
+        if (!resCluster.ok) {
+          Swal.fire({
+            icon: "info",
+            title: "Sin resultados",
+            text: clusterData.detail || "No se encontró cluster",
+            confirmButtonColor: "#16a34a",
+          })
           return
         }
 
-        console.log("✅ Cluster detectado:", data)
-        setResultadoCluster(data)
+        // 2) analizar riesgo del cluster (CON AUTENTICACIÓN)
+        const token = localStorage.getItem("token") // Obtener el token de autenticación
+        const resRiesgo = await fetch(`http://localhost:8000/clusters/analizar/${direccionBase}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        })
+        
+        let riesgoData = {}
+        if (resRiesgo.ok) {
+          riesgoData = await resRiesgo.json()
+        } else {
+          console.warn("⚠️ No se pudo obtener análisis de riesgo:", resRiesgo.status)
+          // Si falla el análisis de riesgo, continuamos con datos por defecto
+          riesgoData = {
+            nivel: "No disponible",
+            total: 0,
+            categorias: []
+          }
+        }
+
+        // 3) merge cluster + riesgo
+        const merged = {
+          ...clusterData,
+          tipo_riesgo: riesgoData.nivel,
+          puntaje_total: riesgoData.total,
+          categorias_detectadas: riesgoData.categorias,
+        }
+
+        console.log("✅ Cluster con riesgo:", merged)
+
+        setResultadoCluster(merged)
         setIsClusterModalOpen(true)
         return
-      } 
+      }
+
       // 🆕 ANÁLISIS TEMPORAL
       else if (tipoAccion === "temporal") {
         const direcciones = form.direcciones
