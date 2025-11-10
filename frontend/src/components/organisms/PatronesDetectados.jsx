@@ -68,16 +68,22 @@ const PatronesDetectados = () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Error al ejecutar la detección");
+      if (!res.ok) {
+        // Intenta obtener más detalles del error desde el cuerpo de la respuesta
+        const errorData = await res.json().catch(() => null); // Intenta parsear como JSON, si falla, no hay cuerpo o no es JSON
+        const errorMessage = errorData?.detail || "Error al ejecutar la detección";
+        throw new Error(errorMessage);
+      }
       const data = await res.json();
       toast({
         title: "Detección Completada",
         description: `Se encontraron ${data.analisis.length} nuevos patrones.`,
       });
       loadData(); // Refresh all data
-    } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error en la detección." });
+    } catch (error) {
+      console.error("Error en detectarPatrones:", error);
+      const description = error.message || "Ocurrió un error en la detección.";
+      toast({ variant: "destructive", title: "Error de Detección", description });
     } finally {
       setLoadingPost(false);
     }
