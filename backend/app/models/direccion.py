@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from app.database import PyObjectId
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class DireccionModel(BaseModel):
     model_config = ConfigDict(
@@ -28,6 +28,7 @@ class DireccionModel(BaseModel):
     has_more: bool = False
     primer_tx: Optional[datetime] = None
     ultima_tx: Optional[datetime] = None
+    bloques: Optional[List[int]] = []   # 👈 AGREGA ESTO
     
     # ✅ CAMPOS NUEVOS DEL ANÁLISIS
     ultimo_update_riesgo: Optional[str] = None
@@ -36,3 +37,4 @@ class DireccionModel(BaseModel):
     actividad: Optional[str] = None
     categorias: Optional[list] = None
     ponderaciones: Optional[dict] = None
+    

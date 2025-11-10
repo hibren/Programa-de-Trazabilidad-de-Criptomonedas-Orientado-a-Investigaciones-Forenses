@@ -13,6 +13,7 @@ const API_URL = "http://localhost:8000"
 export default function DireccionDetail({ direccion }) {
   const [info, setInfo] = useState(null)
   const [transacciones, setTransacciones] = useState([])
+  const [bloques, setBloques] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const { token } = useAuth()
 
