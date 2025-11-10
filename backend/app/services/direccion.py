@@ -1,4 +1,4 @@
-from app.database import direccion_collection, PyObjectId
+from app.database import direccion_collection, bloque_collection, PyObjectId
 from app.models.direccion import DireccionModel
 from app.schemas.direccion import DireccionCreateSchema
 from typing import List, Optional
@@ -16,13 +16,15 @@ BLOCKCYPHER_TOKENS = [
 def get_random_token():
     return random.choice(BLOCKCYPHER_TOKENS)
 
+# ==============================================================
+# CRUD DIRECCIONES
+# ==============================================================
+
 async def get_all_direcciones():
     docs = await direccion_collection.find().to_list(None)
     result = []
     for doc in docs:
-        # convierte el ObjectId a string
         doc["_id"] = str(doc["_id"])
-        # usa .dict(by_alias=True) para mantener los alias
         result.append(DireccionModel(**doc).dict(by_alias=True))
     return result
 
@@ -31,12 +33,10 @@ async def create_direccion(data: dict) -> dict:
     created = await direccion_collection.find_one({"_id": result.inserted_id})
     return DireccionModel(**created).dict(by_alias=True)
 
-# Obtener por dirección
 async def get_direccion_by_value(direccion_str: str) -> Optional[DireccionModel]:
     doc = await direccion_collection.find_one({"direccion": direccion_str})
     return DireccionModel(**doc) if doc else None
 
-# Actualizar
 async def update_direccion(direccion_id: str, data: dict) -> Optional[DireccionModel]:
     await direccion_collection.update_one(
         {"_id": PyObjectId(direccion_id)}, {"$set": data}
@@ -44,10 +44,13 @@ async def update_direccion(direccion_id: str, data: dict) -> Optional[DireccionM
     updated = await direccion_collection.find_one({"_id": PyObjectId(direccion_id)})
     return DireccionModel(**updated) if updated else None
 
-# Eliminar
 async def delete_direccion(direccion_id: str) -> int:
     result = await direccion_collection.delete_one({"_id": PyObjectId(direccion_id)})
     return result.deleted_count
+
+# ==============================================================
+# FETCH DIRECCIÓN DESDE BLOCKCYPHER Y BLOQUES LOCALES
+# ==============================================================
 
 async def fetch_and_save_direccion(address: str) -> DireccionModel:
     MAX_INTENTOS = 3
@@ -58,40 +61,38 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
         try:
             token = get_random_token()
             url = f"{BLOCKCYPHER_API}/addrs/{address}/full?token={token}"
-            
+
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "application/json",
             }
-            
+
             delay = random.uniform(2, 5)
             await asyncio.sleep(delay)
-            
             print(f"🌐 [Dirección] Consultando {address[:8]}... (Intento {intento + 1})")
-            
+
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url, headers=headers)
-                
                 content_type = response.headers.get("Content-Type", "")
                 response_text = response.text
-                
+
                 if "Cloudflare" in response_text or "Just a moment" in response_text:
                     print(f"🔒 Cloudflare detectado en dirección {address[:8]}. Reintentando...")
                     await asyncio.sleep(BASE_DELAY * (intento + 1))
                     continue
-                
+
                 if "application/json" not in content_type:
                     print(f"⚠️ Respuesta no es JSON para dirección {address[:8]}: {content_type}")
                     await asyncio.sleep(BASE_DELAY * (intento + 1))
                     continue
-                
+
                 try:
                     api_data = response.json()
                 except json.JSONDecodeError:
                     print(f"❌ JSON inválido para dirección {address[:8]}.")
                     await asyncio.sleep(BASE_DELAY * (intento + 1))
                     continue
-                
+
                 if "error" in api_data:
                     error_msg = api_data["error"]
                     if "limit" in error_msg.lower():
@@ -99,18 +100,18 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
                         await asyncio.sleep(BASE_DELAY * 2)
                         continue
                     raise Exception(f"Error de API para {address}: {error_msg}")
-                
+
                 response.raise_for_status()
                 data = api_data
-                break # Salir del bucle si todo fue bien
+                break  # ✅ Salir del bucle si todo fue bien
 
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429: # Too Many Requests
+            if e.response.status_code == 429:
                 print(f"⏳ HTTP 429 en dirección {address[:8]}. Esperando...")
                 await asyncio.sleep(BASE_DELAY * 3)
             else:
                 raise Exception(f"Error HTTP para {address}: {e.response.text}") from e
-        except httpx.RequestError as e:
+        except httpx.RequestError:
             print(f"🔌 Error de conexión para {address}. Reintentando...")
             await asyncio.sleep(BASE_DELAY * (intento + 1))
 
@@ -120,11 +121,34 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
     txs = data.get("txs", [])
     primer_tx = None
     ultima_tx = None
+    bloques = []
+
     if txs:
-        # Las transacciones vienen ordenadas por BlockCypher de más reciente a más antigua
         ultima_tx = txs[0].get("confirmed")
         primer_tx = txs[-1].get("confirmed")
 
+        bloques_set = set()
+        for tx in txs:
+            block_height = tx.get("block_height")
+            if block_height:
+                bloques_set.add(block_height)
+
+        # 🔍 Si no hay bloques en el API, buscar en la colección local
+        if not bloques_set:
+            bloques_docs = await bloque_collection.find(
+                {"transacciones.direcciones": address},
+                {"numero_bloque": 1, "_id": 0}
+            ).to_list(None)
+            if bloques_docs:
+                for b in bloques_docs:
+                    bloques_set.add(b["numero_bloque"])
+
+        bloques = sorted(list(bloques_set), reverse=True)
+        print(f"📦 [Dirección] {len(bloques)} bloques encontrados para {address[:8]}")
+
+    # ==============================================================
+    # Documento final a guardar
+    # ==============================================================
     doc = {
         "direccion": address,
         "balance": float(data.get("balance", 0)),
@@ -139,6 +163,7 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
         "has_more": bool(data.get("hasMore", False)),
         "primer_tx": primer_tx,
         "ultima_tx": ultima_tx,
+        "bloques": bloques,
     }
 
     existing = await direccion_collection.find_one({"direccion": address})
@@ -149,4 +174,5 @@ async def fetch_and_save_direccion(address: str) -> DireccionModel:
         result = await direccion_collection.insert_one(doc)
         doc["_id"] = result.inserted_id
 
+    print(f"✅ Dirección {address[:8]} guardada con {len(bloques)} bloques asociados.")
     return DireccionModel(**doc)

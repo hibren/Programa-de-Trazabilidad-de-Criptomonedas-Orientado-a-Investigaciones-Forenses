@@ -19,12 +19,13 @@ class DireccionCreateSchema(BaseModel):
     has_more: bool = False
     primer_tx: Optional[datetime] = None
     ultima_tx: Optional[datetime] = None
+    bloques: Optional[list[int]] = []  # 👈 AGREGADO
 
 class DireccionFetchRequest(BaseModel):
     direccion: str
 
 class DireccionResponseSchema(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)  # ✅ CLAVE: Permite campos extra
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
     
     id: PyObjectIdField = Field(alias="_id")
     direccion: str
@@ -46,3 +47,4 @@ class DireccionResponseSchema(BaseModel):
     actividad: Optional[str] = None
     categorias: Optional[list[str]] = None
     ponderaciones: Optional[dict] = None
+    bloques: Optional[list[int]] = []  # 👈 AGREGADO
