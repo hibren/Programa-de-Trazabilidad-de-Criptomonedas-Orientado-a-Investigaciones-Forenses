@@ -8,15 +8,16 @@ from app.schemas.analisis import AnalisisOut
 router = APIRouter(prefix="/patrones", tags=["Patrones"])
 
 @router.post("/detectar")
-async def detectar_patrones_endpoint(current_user: Usuario = Depends(check_permissions_auto)):
+async def detectar_patrones_endpoint():
     try:
         resultados = await detectar_patrones_sospechosos()
         return resultados
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/", response_model=List[AnalisisOut])
-async def get_patrones_analizados(current_user: Usuario = Depends(check_permissions_auto)):
+async def get_patrones_analizados():
     try:
         analisis = await get_analisis_por_patrones()
         return [a.model_dump(by_alias=True) for a in analisis]
