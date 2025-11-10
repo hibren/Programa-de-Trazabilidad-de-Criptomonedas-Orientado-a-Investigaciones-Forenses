@@ -7,10 +7,10 @@ class Reporte(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     chainabuse_id: Optional[str] = None
     id_direccion: str
-    scamCategory: str
-    createdAt: datetime
-    trusted: bool
-    domains: List[str]
+    scamCategory: str = Field(default="Desconocido")
+    createdAt: Optional[datetime] = None        # ← por si no viene en algunos docs
+    trusted: Optional[bool] = False             # ← ahora opcional con valor por defecto
+    domains: Optional[List[str]] = Field(default_factory=list)  # ← opcional, lista vacía por defecto
 
     class Config:
         arbitrary_types_allowed = True
