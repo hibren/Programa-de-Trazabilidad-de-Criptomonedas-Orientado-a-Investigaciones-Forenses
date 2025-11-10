@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Loader2, ArrowDownRight, ArrowUpRight, Wallet, List } from "lucide-react"
 import DireccionGraph from "@/components/organisms/DireccionGraph"
+import { useAuth } from "@/contexts/AuthContext"
 
 const API_URL = "http://localhost:8000"
 
@@ -13,14 +14,26 @@ export default function DireccionDetail({ direccion }) {
   const [info, setInfo] = useState(null)
   const [transacciones, setTransacciones] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const { token } = useAuth()
 
   useEffect(() => {
     async function fetchData() {
+      if (!token) return
+      
       try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+
         const [infoRes, txRes] = await Promise.all([
-          fetch(`${API_URL}/direcciones/${direccion}`).then((r) => r.json()),
-          fetch(`${API_URL}/direcciones/${direccion}/transacciones`).then((r) => r.json()),
+          fetch(`${API_URL}/direcciones/${direccion}`, { headers }).then((r) => r.json()),
+          fetch(`${API_URL}/direcciones/${direccion}/transacciones`, { headers }).then((r) => r.json()),
         ])
+        
+        console.log("Info recibida:", infoRes)
+        console.log("Transacciones:", txRes)
+        
         setInfo(infoRes)
         setTransacciones(txRes)
       } catch (err) {
@@ -31,7 +44,7 @@ export default function DireccionDetail({ direccion }) {
     }
 
     fetchData()
-  }, [direccion])
+  }, [direccion, token])
 
   if (isLoading) {
     return (
