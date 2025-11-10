@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from app.routers import direccion, bloque, transaccion, reporte, cluster, analisis, relacion, usuario, perfiles, modules, patrones, trazabilidad, rastreo, alerta, patrones_temporales
+from app.routers import direccion, bloque, transaccion, reporte, cluster, analisis, relacion, usuario, perfiles, modules, patrones, trazabilidad, rastreo, alerta, patrones_temporales, reporte_programado
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Trazabilidad de Criptomonedas", version="1.0.0")
@@ -31,6 +31,7 @@ app.include_router(trazabilidad.router)
 app.include_router(rastreo.router)
 app.include_router(alerta.router)
 app.include_router(patrones_temporales.router)
+app.include_router(reporte_programado.router)
 
 
 @app.get("/")
